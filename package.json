@@ -15,6 +15,7 @@
     "prettier": "^3.4.2"
   },
   "dependencies": {
+    "bitecs": "^0.4.0",
     "phaser": "^3.87.0"
   },
   "lint-staged": {
