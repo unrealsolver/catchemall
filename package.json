@@ -1,0 +1,22 @@
+{
+  "name": "catchemall",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --hot src/server.ts",
+    "build": "bun build src/main.ts --outdir dist --minify",
+    "preview": "bun run dist/main.js",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.11",
+    "prettier": "^3.4.2"
+  },
+  "dependencies": {
+    "phaser": "^3.87.0"
+  },
+  "lint-staged": {
+    "*.{js,ts,json,html,css,md}": "prettier --write"
+  }
+}
