@@ -18,6 +18,20 @@ const server = Bun.serve({
         return new Response("Not Found", { status: 404 });
       }
 
+      if (filePath.endsWith(".ts")) {
+        const result = await Bun.build({
+          entrypoints: [filePath],
+          format: "esm",
+        });
+        if (result.success && result.outputs.length > 0) {
+          const js = await result.outputs[0].text();
+          return new Response(js, {
+            headers: { "Content-Type": "application/javascript" },
+          });
+        }
+        return new Response("Build failed", { status: 500 });
+      }
+
       const contentType = getContentType(filePath);
       return new Response(file, {
         headers: { "Content-Type": contentType },
