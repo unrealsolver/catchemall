@@ -12,7 +12,6 @@ export class MainScene extends Phaser.Scene {
   private world!: GameWorld;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private spaceKey!: Phaser.Input.Keyboard.Key;
-  private Matter!: any;
   private graphics!: Phaser.GameObjects.Graphics;
 
   constructor() {
@@ -26,9 +25,6 @@ export class MainScene extends Phaser.Scene {
   create(): void {
     // Initialize ECS world
     this.world = createGameWorld();
-
-    // Get Matter.js reference
-    this.Matter = (this.matter as any).matter;
 
     // Create physics bodies and register entities
     createArenaPhysics(this.matter, this.world);
@@ -100,7 +96,7 @@ export class MainScene extends Phaser.Scene {
       leftPressed,
       rightPressed,
       actionPressed,
-      this.Matter
+      this.matter
     );
 
     // Update UI

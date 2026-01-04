@@ -1,3 +1,4 @@
+import Phaser from "phaser";
 import { query } from "bitecs";
 import {
   Position,
@@ -10,6 +11,8 @@ import {
   HingeConstraint,
 } from "./components";
 import { GameWorld } from "./world";
+
+type MatterPhysics = Phaser.Physics.Matter.MatterPhysics;
 
 // Sync physics bodies to ECS position/rotation
 export const physicsToEcsSystem = (world: GameWorld): void => {
@@ -38,7 +41,7 @@ export const trolleyMovementSystem = (
   world: GameWorld,
   leftPressed: boolean,
   rightPressed: boolean,
-  Matter: any
+  matter: MatterPhysics
 ): void => {
   const entities = query(world, [
     Trolley,
@@ -67,7 +70,7 @@ export const trolleyMovementSystem = (
       const maxX = wellRight - clawSpread - 20;
 
       if (newX >= minX && newX <= maxX) {
-        Matter.Body.setPosition(body, {
+        matter.body.setPosition(body, {
           x: newX,
           y: body.position.y,
         });
@@ -80,7 +83,7 @@ export const trolleyMovementSystem = (
 export const clawSequenceSystem = (
   world: GameWorld,
   actionPressed: boolean,
-  Matter: any
+  matter: MatterPhysics
 ): void => {
   const trolleyEntities = query(world, [Trolley, PhysicsBody, ClawController]);
   const ropeEntities = query(world, [RopeLink, Position, PhysicsBody]);
@@ -123,7 +126,10 @@ export const clawSequenceSystem = (
 };
 
 // Update claw hinge positions based on open/closed state
-export const clawHingeSystem = (world: GameWorld, Matter: any): void => {
+export const clawHingeSystem = (
+  world: GameWorld,
+  matter: MatterPhysics
+): void => {
   const trolleyEntities = query(world, [Trolley, ClawController]);
   const hingeEntities = query(world, [ClawHinge, PhysicsBody, HingeConstraint]);
 
@@ -155,10 +161,10 @@ export const runGameSystems = (
   leftPressed: boolean,
   rightPressed: boolean,
   actionPressed: boolean,
-  Matter: any
+  matter: MatterPhysics
 ): void => {
   physicsToEcsSystem(world);
-  trolleyMovementSystem(world, leftPressed, rightPressed, Matter);
-  clawSequenceSystem(world, actionPressed, Matter);
-  clawHingeSystem(world, Matter);
+  trolleyMovementSystem(world, leftPressed, rightPressed, matter);
+  clawSequenceSystem(world, actionPressed, matter);
+  clawHingeSystem(world, matter);
 };
