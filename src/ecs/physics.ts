@@ -35,8 +35,7 @@ export const createArenaPhysics = (
     wallWidth,
     wallOptions
   );
-  registerBody(world, floor);
-  createWall(world, floor.position.x, floor.position.y, floor.id);
+  createWall(world, floor);
 
   // Basin left wall
   const leftWall = matter.add.rectangle(
@@ -46,8 +45,7 @@ export const createArenaPhysics = (
     wellBottom - wellTop + 20,
     wallOptions
   );
-  registerBody(world, leftWall);
-  createWall(world, leftWall.position.x, leftWall.position.y, leftWall.id);
+  createWall(world, leftWall);
 
   // Basin right wall
   const rightWall = matter.add.rectangle(
@@ -57,8 +55,7 @@ export const createArenaPhysics = (
     wellBottom - wellTop + 20,
     wallOptions
   );
-  registerBody(world, rightWall);
-  createWall(world, rightWall.position.x, rightWall.position.y, rightWall.id);
+  createWall(world, rightWall);
 
   // Drop zone left wall
   const dropLeftWall = matter.add.rectangle(
@@ -68,13 +65,7 @@ export const createArenaPhysics = (
     wellBottom - wellTop + 20,
     wallOptions
   );
-  registerBody(world, dropLeftWall, 10, (wellTop + wellBottom) / 2);
-  createWall(
-    world,
-    dropLeftWall.position.x,
-    dropLeftWall.position.y,
-    dropLeftWall.id
-  );
+  createWall(world, dropLeftWall);
 };
 
 export const createClawPhysics = (

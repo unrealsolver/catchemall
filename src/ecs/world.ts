@@ -152,18 +152,18 @@ export const createToy = (
 
 export const createWall = (
   world: GameWorld,
-  x: number,
-  y: number,
-  bodyId: number
+  body: MatterJS.BodyType
 ): number => {
+  world.physics.bodies.set(body.id, body);
+
   const eid = addEntity(world);
   addComponent(world, eid, Position);
   addComponent(world, eid, PhysicsBody);
   addComponent(world, eid, Wall);
 
-  Position.x[eid] = x;
-  Position.y[eid] = y;
-  PhysicsBody.bodyId[eid] = bodyId;
+  Position.x[eid] = body.position.x;
+  Position.y[eid] = body.position.y;
+  PhysicsBody.bodyId[eid] = body.id;
 
   return eid;
 };
