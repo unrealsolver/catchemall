@@ -18,8 +18,7 @@ export const createArenaPhysics = (
   matter: Phaser.Physics.Matter.MatterPhysics,
   world: GameWorld
 ): void => {
-  const { wellLeft, wellRight, wellTop, wellBottom, dropZoneWidth, width } =
-    world.config;
+  const { wellLeft, wallWidth, wellTop, wellBottom } = world.config;
 
   const wallOptions = {
     isStatic: true,
@@ -30,13 +29,13 @@ export const createArenaPhysics = (
 
   // Basin floor
   const floor = matter.add.rectangle(
-    (wellLeft + wellRight) / 2,
+    world.config.view.width / 2,
     wellBottom,
-    wellRight - wellLeft,
-    20,
+    world.config.view.width + wallWidth * 2,
+    wallWidth,
     wallOptions
   );
-  registerBody(world, floor, wellLeft + (wellRight - wellLeft) / 2, wellBottom);
+  registerBody(world, floor);
   createWall(world, floor.position.x, floor.position.y, floor.id);
 
   // Basin left wall
@@ -47,36 +46,25 @@ export const createArenaPhysics = (
     wellBottom - wellTop + 20,
     wallOptions
   );
-  registerBody(world, leftWall, wellLeft, (wellTop + wellBottom) / 2);
+  registerBody(world, leftWall);
   createWall(world, leftWall.position.x, leftWall.position.y, leftWall.id);
 
   // Basin right wall
   const rightWall = matter.add.rectangle(
-    wellRight,
+    world.config.view.width + wallWidth / 2,
     (wellTop + wellBottom) / 2,
-    20,
+    wallWidth,
     wellBottom - wellTop + 20,
     wallOptions
   );
-  registerBody(world, rightWall, wellRight, (wellTop + wellBottom) / 2);
+  registerBody(world, rightWall);
   createWall(world, rightWall.position.x, rightWall.position.y, rightWall.id);
-
-  // Drop zone floor
-  const dropFloor = matter.add.rectangle(
-    dropZoneWidth / 2,
-    wellBottom,
-    dropZoneWidth,
-    20,
-    { ...wallOptions, label: "dropzone" }
-  );
-  registerBody(world, dropFloor, dropZoneWidth / 2, wellBottom);
-  createWall(world, dropFloor.position.x, dropFloor.position.y, dropFloor.id);
 
   // Drop zone left wall
   const dropLeftWall = matter.add.rectangle(
-    10,
+    -wallWidth,
     (wellTop + wellBottom) / 2,
-    20,
+    wallWidth,
     wellBottom - wellTop + 20,
     wallOptions
   );
@@ -87,40 +75,22 @@ export const createArenaPhysics = (
     dropLeftWall.position.y,
     dropLeftWall.id
   );
-
-  // Separator (partial wall)
-  const separator = matter.add.rectangle(
-    dropZoneWidth + 10,
-    wellBottom - 80,
-    20,
-    180,
-    wallOptions
-  );
-  registerBody(world, separator, dropZoneWidth + 10, wellBottom - 80);
-  createWall(world, separator.position.x, separator.position.y, separator.id);
 };
 
 export const createClawPhysics = (
   matter: Phaser.Physics.Matter.MatterPhysics,
   world: GameWorld
 ): void => {
-  const {
-    trolleyY,
-    wellLeft,
-    wellRight,
-    ropeLinks,
-    linkLength,
-    clawRadius,
-    clawSpread,
-  } = world.config;
-  const trolleyX = (wellLeft + wellRight) / 2;
+  const { trolleyY, wellLeft, ropeLinks, linkLength, clawRadius, clawSpread } =
+    world.config;
+  const trolleyX = (wellLeft + world.config.view.width) / 2;
 
   // Create trolley (kinematic - we control it directly)
   const trolleyBody = matter.add.rectangle(trolleyX, trolleyY, 60, 20, {
     isStatic: true,
     label: "trolley",
   });
-  registerBody(world, trolleyBody, trolleyX, trolleyY);
+  registerBody(world, trolleyBody);
   const trolleyEid = createTrolley(world, trolleyX, trolleyY, trolleyBody.id);
 
   // Create rope links
@@ -135,7 +105,7 @@ export const createClawPhysics = (
       density: 0.001,
       label: `rope-${i}`,
     });
-    registerBody(world, link, trolleyX, linkY);
+    registerBody(world, link);
     createRopeLink(world, trolleyX, linkY, i, link.id);
     links.push(link);
 
@@ -148,6 +118,7 @@ export const createClawPhysics = (
       {
         pointA: { x: 0, y: i === 0 ? 10 : linkLength / 2 },
         pointB: { x: 0, y: -linkLength / 2 },
+        damping: 0.1,
       }
     );
     registerConstraint(world, constraint);
@@ -171,7 +142,7 @@ export const createClawPhysics = (
       label: "claw-left",
     }
   );
-  registerBody(world, leftHinge, trolleyX - clawSpread, hingeY);
+  registerBody(world, leftHinge);
 
   const leftConstraint = matter.add.constraint(lastLink, leftHinge, 0, 0.8, {
     pointA: { x: 0, y: linkLength / 2 },
@@ -199,7 +170,7 @@ export const createClawPhysics = (
       label: "claw-right",
     }
   );
-  registerBody(world, rightHinge, trolleyX + clawSpread, hingeY);
+  registerBody(world, rightHinge);
 
   const rightConstraint = matter.add.constraint(lastLink, rightHinge, 0, 0.8, {
     pointA: { x: 0, y: linkLength / 2 },
@@ -221,12 +192,13 @@ export const createToyPhysics = (
   world: GameWorld,
   count: number
 ): void => {
-  const { wellLeft, wellRight, wellBottom } = world.config;
+  const { wellLeft, wellBottom } = world.config;
 
   for (let i = 0; i < count; i++) {
     const sides = 4 + Math.floor(Math.random() * 3); // 4, 5, or 6 sides
     const radius = 15 + Math.random() * 15;
-    const x = wellLeft + 40 + Math.random() * (wellRight - wellLeft - 80);
+    const x =
+      wellLeft + 40 + Math.random() * (world.config.view.width - wellLeft - 80);
     const y = wellBottom - 60 - Math.random() * 200;
 
     const toy = matter.add.polygon(x, y, sides, radius, {
@@ -235,17 +207,12 @@ export const createToyPhysics = (
       density: 0.002,
       label: `toy-${i}`,
     });
-    registerBody(world, toy, x, y);
+    registerBody(world, toy);
     createToy(world, x, y, sides, toy.id);
   }
 };
 
-const registerBody = (
-  world: GameWorld,
-  body: MatterJS.BodyType,
-  _x: number,
-  _y: number
-): void => {
+const registerBody = (world: GameWorld, body: MatterJS.BodyType): void => {
   world.physics.bodies.set(body.id, body);
 };
 

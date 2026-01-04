@@ -49,7 +49,7 @@ export const trolleyMovementSystem = (
     PhysicsBody,
     ClawController,
   ]);
-  const { trolleySpeed, wellLeft, wellRight, clawSpread } = world.config;
+  const { trolleySpeed, wellLeft, clawSpread } = world.config;
 
   for (const eid of entities) {
     const bodyId = PhysicsBody.bodyId[eid];
@@ -67,7 +67,7 @@ export const trolleyMovementSystem = (
 
       const newX = body.position.x + dx;
       const minX = wellLeft + clawSpread + 20;
-      const maxX = wellRight - clawSpread - 20;
+      const maxX = world.config.view.width - clawSpread - 20;
 
       if (newX >= minX && newX <= maxX) {
         matter.body.setPosition(body, {

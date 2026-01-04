@@ -13,13 +13,14 @@ import {
 } from "./components";
 
 export type GameConfig = {
-  width: number;
-  height: number;
+  view: {
+    width: number;
+    height: number;
+  };
   wellLeft: number;
-  wellRight: number;
   wellTop: number;
   wellBottom: number;
-  dropZoneWidth: number;
+  wallWidth: number;
   trolleyY: number;
   ropeLinks: number;
   linkLength: number;
@@ -41,16 +42,17 @@ export const createGameWorld = (): GameWorld => {
   world.physics = { bodies: new Map() };
   world.constraints = { items: new Map() };
   world.config = {
-    width: 800,
-    height: 600,
+    view: {
+      width: 800,
+      height: 600,
+    },
+    wallWidth: 20,
     wellLeft: 160,
-    wellRight: 780,
     wellTop: 80,
     wellBottom: 580,
-    dropZoneWidth: 140,
     trolleyY: 50,
-    ropeLinks: 32,
-    linkLength: 12,
+    ropeLinks: 12,
+    linkLength: 8,
     clawRadius: 12,
     clawSpread: 35,
     trolleySpeed: 4,

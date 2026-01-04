@@ -43,7 +43,7 @@ export class MainScene extends Phaser.Scene {
 
     // Add title
     this.add
-      .text(this.world.config.width / 2, 20, "CLAW MACHINE", {
+      .text(this.world.config.view.width / 2, 20, "CLAW MACHINE", {
         fontSize: "24px",
         color: "#ffffff",
         fontFamily: "monospace",
@@ -53,7 +53,7 @@ export class MainScene extends Phaser.Scene {
     // Drop zone label
     this.add
       .text(
-        this.world.config.dropZoneWidth / 2,
+        this.world.config.wellLeft / 2,
         this.world.config.wellTop + 30,
         "DROP\nZONE",
         {
@@ -68,8 +68,8 @@ export class MainScene extends Phaser.Scene {
     // Instructions
     this.add
       .text(
-        this.world.config.width / 2,
-        this.world.config.height - 15,
+        this.world.config.view.width / 2,
+        this.world.config.view.height - 15,
         "← → Move   SPACE Drop Claw",
         {
           fontSize: "12px",
@@ -106,23 +106,23 @@ export class MainScene extends Phaser.Scene {
   private drawUI(): void {
     this.graphics.clear();
 
-    const { dropZoneWidth, wellTop, wellBottom } = this.world.config;
+    const { wellLeft, wallWidth, wellTop, wellBottom } = this.world.config;
 
     // Drop zone highlight
     this.graphics.lineStyle(2, 0x44aa44, 0.5);
     this.graphics.strokeRect(
-      5,
+      0,
       wellTop + 5,
-      dropZoneWidth - 10,
-      wellBottom - wellTop - 10
+      wellLeft - wallWidth / 2,
+      wellBottom - wellTop - wallWidth / 2
     );
 
     // Instructions background
     this.graphics.fillStyle(0x000000, 0.5);
     this.graphics.fillRect(
       0,
-      this.world.config.height - 30,
-      this.world.config.width,
+      this.world.config.view.height - 30,
+      this.world.config.view.width,
       30
     );
   }
