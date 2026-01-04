@@ -27,6 +27,11 @@ export type GameConfig = {
   well: WellConfig;
   trolley: TrolleyConfig;
   claw: ClawConfig;
+  dropzone: Dropzeonconfig;
+};
+
+export type Dropzeonconfig = {
+  height: number;
 };
 
 export const createGameConfig = (): GameConfig => ({
@@ -34,12 +39,15 @@ export const createGameConfig = (): GameConfig => ({
   well: {
     left: 160,
     top: 80,
-    bottom: 580,
+    bottom: 20,
     wallWidth: 20,
   },
   trolley: {
     y: 50,
     speed: 4,
+  },
+  dropzone: {
+    height: 120,
   },
   claw: {
     ropeLinks: 12,

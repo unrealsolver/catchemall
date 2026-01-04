@@ -1,4 +1,4 @@
-import Phaser from "phaser";
+import Phaser, { Game } from "phaser";
 import {
   GameConfig,
   createGameConfig,
@@ -72,34 +72,51 @@ export class MainScene extends Phaser.Scene {
   }
 
   private createPhysicsObjects(config: GameConfig): ClawBodies {
-    const { well, trolley: trolleyConfig, claw: clawConfig } = config;
-    const trolleyX = (well.left + config.view.width) / 2;
+    const { view, well, trolley: trolleyConfig, claw: clawConfig } = config;
 
     // Walls
+    // Bottom
     this.createWall(
-      config.view.width / 2,
-      well.bottom,
-      config.view.width + well.wallWidth * 2,
+      view.width / 2,
+      view.height - well.bottom,
+      view.width + well.wallWidth * 2,
       well.wallWidth
     );
+
+    // Left
     this.createWall(
       well.left,
-      (well.top + well.bottom) / 2,
-      20,
-      well.bottom - well.top + 20
-    );
-    this.createWall(
-      config.view.width + well.wallWidth / 2,
-      (well.top + well.bottom) / 2,
+      (well.top + view.height - well.bottom) / 2,
       well.wallWidth,
-      well.bottom - well.top + 20
+      view.height - well.bottom - well.top + 20
     );
+
+    // Right
+    this.createWall(
+      view.width - well.wallWidth / 2,
+      view.height / 2,
+      well.wallWidth,
+      view.height
+    );
+
+    // Left dropzone wall
     this.createWall(
       -well.wallWidth,
-      (well.top + well.bottom) / 2,
+      view.height / 2,
       well.wallWidth,
-      well.bottom - well.top + 20
+      view.height
     );
+
+    this.createToys(config);
+
+    return {
+      ...this.createClaw(config),
+    };
+  }
+
+  private createClaw(config: GameConfig) {
+    const { well, trolley: trolleyConfig, claw: clawConfig } = config;
+    const trolleyX = (well.left + config.view.width) / 2;
 
     // Trolley
     const trolley = this.matter.add.rectangle(
@@ -143,6 +160,7 @@ export class MainScene extends Phaser.Scene {
     // Claw hinges
     const lastLinkY =
       trolleyConfig.y + 20 + (clawConfig.ropeLinks - 1) * clawConfig.linkLength;
+
     const hingeY =
       lastLinkY + clawConfig.linkLength / 2 + clawConfig.hingeRadius;
 
@@ -184,36 +202,34 @@ export class MainScene extends Phaser.Scene {
       }
     );
 
+    return {
+      trolley,
+      leftConstraint,
+      rightConstraint,
+      leftHinge,
+      rightHinge,
+      ropeLinks,
+    };
+  }
+
+  private createToys(config: GameConfig) {
+    const { view, well } = config;
     // Toys
     for (let i = 0; i < 8; i++) {
       const sides = 4 + Math.floor(Math.random() * 3);
       const radius = 15 + Math.random() * 15;
       const x =
         well.left + 40 + Math.random() * (config.view.width - well.left - 80);
-      const y = well.bottom - 60 - Math.random() * 200;
+      const y = view.height - well.bottom - 60 - Math.random() * 200;
       this.matter.add.polygon(x, y, sides, radius, {
         friction: 0.5,
         restitution: 0.3,
         density: 0.002,
       });
     }
-
-    return {
-      trolley,
-      ropeLinks,
-      leftHinge,
-      rightHinge,
-      leftConstraint,
-      rightConstraint,
-    };
   }
 
-  private createWall(
-    x: number,
-    y: number,
-    width: number,
-    height: number
-  ): MatterJS.BodyType {
+  private createWall(x: number, y: number, width: number, height: number) {
     return this.matter.add.rectangle(x, y, width, height, {
       isStatic: true,
       friction: 0.3,
@@ -253,14 +269,15 @@ export class MainScene extends Phaser.Scene {
 
   private drawUI(): void {
     this.graphics.clear();
-    const { well } = this.state.config;
+    const { view, well, dropzone } = this.state.config;
 
+    // DropZone
     this.graphics.lineStyle(2, 0x44aa44, 0.5);
     this.graphics.strokeRect(
       0,
-      well.top + 5,
+      view.height - well.bottom - well.wallWidth / 2 - dropzone.height,
       well.left - well.wallWidth / 2,
-      well.bottom - well.top - well.wallWidth / 2
+      dropzone.height
     );
 
     this.graphics.fillStyle(0x000000, 0.5);
