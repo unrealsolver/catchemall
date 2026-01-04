@@ -1,15 +1,14 @@
 import { createWorld, addEntity, addComponent, World } from "bitecs";
 import {
-  Position,
-  Rotation,
-  PhysicsBody,
+  Transform,
+  Collider,
+  ShapeType,
   Trolley,
   RopeLink,
   ClawHinge,
   ClawController,
   Toy,
   Wall,
-  HingeConstraint,
 } from "./components";
 
 export type GameConfig = {
@@ -63,18 +62,26 @@ export const createGameWorld = (): GameWorld => {
 export const createTrolley = (
   world: GameWorld,
   x: number,
-  y: number,
-  bodyId: number
+  y: number
 ): number => {
   const eid = addEntity(world);
-  addComponent(world, eid, Position);
-  addComponent(world, eid, PhysicsBody);
+
+  addComponent(world, eid, Transform);
+  Transform.x[eid] = x;
+  Transform.y[eid] = y;
+  Transform.rotation[eid] = 0;
+
+  addComponent(world, eid, Collider);
+  Collider.shapeType[eid] = ShapeType.RECTANGLE;
+  Collider.width[eid] = 60;
+  Collider.height[eid] = 20;
+  Collider.isStatic[eid] = 1;
+  Collider.friction[eid] = 0.3;
+  Collider.restitution[eid] = 0.1;
+  Collider.density[eid] = 0.001;
+
   addComponent(world, eid, Trolley);
   addComponent(world, eid, ClawController);
-
-  Position.x[eid] = x;
-  Position.y[eid] = y;
-  PhysicsBody.bodyId[eid] = bodyId;
   ClawController.isDescending[eid] = 0;
   ClawController.isAscending[eid] = 0;
   ClawController.isOpen[eid] = 1;
@@ -87,19 +94,25 @@ export const createRopeLink = (
   world: GameWorld,
   x: number,
   y: number,
-  index: number,
-  bodyId: number
+  index: number
 ): number => {
   const eid = addEntity(world);
-  addComponent(world, eid, Position);
-  addComponent(world, eid, Rotation);
-  addComponent(world, eid, PhysicsBody);
-  addComponent(world, eid, RopeLink);
 
-  Position.x[eid] = x;
-  Position.y[eid] = y;
-  Rotation.angle[eid] = 0;
-  PhysicsBody.bodyId[eid] = bodyId;
+  addComponent(world, eid, Transform);
+  Transform.x[eid] = x;
+  Transform.y[eid] = y;
+  Transform.rotation[eid] = 0;
+
+  addComponent(world, eid, Collider);
+  Collider.shapeType[eid] = ShapeType.RECTANGLE;
+  Collider.width[eid] = 4;
+  Collider.height[eid] = world.config.linkLength;
+  Collider.isStatic[eid] = 0;
+  Collider.friction[eid] = 0.1;
+  Collider.restitution[eid] = 0.1;
+  Collider.density[eid] = 0.001;
+
+  addComponent(world, eid, RopeLink);
   RopeLink.index[eid] = index;
 
   return eid;
@@ -109,21 +122,25 @@ export const createClawHinge = (
   world: GameWorld,
   x: number,
   y: number,
-  side: -1 | 1,
-  bodyId: number,
-  constraintId: number
+  side: -1 | 1
 ): number => {
   const eid = addEntity(world);
-  addComponent(world, eid, Position);
-  addComponent(world, eid, PhysicsBody);
-  addComponent(world, eid, ClawHinge);
-  addComponent(world, eid, HingeConstraint);
 
-  Position.x[eid] = x;
-  Position.y[eid] = y;
-  PhysicsBody.bodyId[eid] = bodyId;
+  addComponent(world, eid, Transform);
+  Transform.x[eid] = x;
+  Transform.y[eid] = y;
+  Transform.rotation[eid] = 0;
+
+  addComponent(world, eid, Collider);
+  Collider.shapeType[eid] = ShapeType.CIRCLE;
+  Collider.width[eid] = world.config.clawRadius; // radius
+  Collider.isStatic[eid] = 0;
+  Collider.friction[eid] = 0.8;
+  Collider.restitution[eid] = 0.1;
+  Collider.density[eid] = 0.002;
+
+  addComponent(world, eid, ClawHinge);
   ClawHinge.side[eid] = side;
-  HingeConstraint.constraintId[eid] = constraintId;
 
   return eid;
 };
@@ -133,18 +150,25 @@ export const createToy = (
   x: number,
   y: number,
   sides: number,
-  bodyId: number
+  radius: number
 ): number => {
   const eid = addEntity(world);
-  addComponent(world, eid, Position);
-  addComponent(world, eid, Rotation);
-  addComponent(world, eid, PhysicsBody);
-  addComponent(world, eid, Toy);
 
-  Position.x[eid] = x;
-  Position.y[eid] = y;
-  Rotation.angle[eid] = 0;
-  PhysicsBody.bodyId[eid] = bodyId;
+  addComponent(world, eid, Transform);
+  Transform.x[eid] = x;
+  Transform.y[eid] = y;
+  Transform.rotation[eid] = 0;
+
+  addComponent(world, eid, Collider);
+  Collider.shapeType[eid] = ShapeType.POLYGON;
+  Collider.width[eid] = radius;
+  Collider.sides[eid] = sides;
+  Collider.isStatic[eid] = 0;
+  Collider.friction[eid] = 0.5;
+  Collider.restitution[eid] = 0.3;
+  Collider.density[eid] = 0.002;
+
+  addComponent(world, eid, Toy);
   Toy.sides[eid] = sides;
 
   return eid;
@@ -152,18 +176,28 @@ export const createToy = (
 
 export const createWall = (
   world: GameWorld,
-  body: MatterJS.BodyType
+  x: number,
+  y: number,
+  width: number,
+  height: number
 ): number => {
-  world.physics.bodies.set(body.id, body);
-
   const eid = addEntity(world);
-  addComponent(world, eid, Position);
-  addComponent(world, eid, PhysicsBody);
-  addComponent(world, eid, Wall);
 
-  Position.x[eid] = body.position.x;
-  Position.y[eid] = body.position.y;
-  PhysicsBody.bodyId[eid] = body.id;
+  addComponent(world, eid, Transform);
+  Transform.x[eid] = x;
+  Transform.y[eid] = y;
+  Transform.rotation[eid] = 0;
+
+  addComponent(world, eid, Collider);
+  Collider.shapeType[eid] = ShapeType.RECTANGLE;
+  Collider.width[eid] = width;
+  Collider.height[eid] = height;
+  Collider.isStatic[eid] = 1;
+  Collider.friction[eid] = 0.3;
+  Collider.restitution[eid] = 0.2;
+  Collider.density[eid] = 0.001;
+
+  addComponent(world, eid, Wall);
 
   return eid;
 };

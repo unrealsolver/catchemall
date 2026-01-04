@@ -1,37 +1,89 @@
 import Phaser from "phaser";
-import { query } from "bitecs";
+import { query, hasComponent, addComponent } from "bitecs";
 import {
-  Position,
-  Rotation,
-  PhysicsBody,
+  Transform,
+  Collider,
+  ShapeType,
+  PhysicsRef,
   Trolley,
   RopeLink,
   ClawHinge,
   ClawController,
-  HingeConstraint,
+  ConstraintRef,
 } from "./components";
 import { GameWorld } from "./world";
 
 type MatterPhysics = Phaser.Physics.Matter.MatterPhysics;
 
-// Sync physics bodies to ECS position/rotation
-export const physicsToEcsSystem = (world: GameWorld): void => {
-  const entities = query(world, [Position, PhysicsBody]);
-  for (const eid of entities) {
-    const bodyId = PhysicsBody.bodyId[eid];
-    const body = world.physics.bodies.get(bodyId);
-    if (body) {
-      Position.x[eid] = body.position.x;
-      Position.y[eid] = body.position.y;
-    }
-  }
+// Spawn Matter.js bodies from Collider component
+export const physicsSpawnSystem = (
+  world: GameWorld,
+  matter: MatterPhysics
+): void => {
+  const entities = query(world, [Collider, Transform]);
 
-  const rotatingEntities = query(world, [Rotation, PhysicsBody]);
-  for (const eid of rotatingEntities) {
-    const bodyId = PhysicsBody.bodyId[eid];
-    const body = world.physics.bodies.get(bodyId);
+  for (const eid of entities) {
+    // Skip if already has physics body
+    if (hasComponent(world, eid, PhysicsRef)) continue;
+
+    const shapeType = Collider.shapeType[eid];
+    if (shapeType === ShapeType.NONE) continue;
+
+    const x = Transform.x[eid];
+    const y = Transform.y[eid];
+
+    const options = {
+      isStatic: Collider.isStatic[eid] === 1,
+      friction: Collider.friction[eid],
+      restitution: Collider.restitution[eid],
+      density: Collider.density[eid],
+    };
+
+    let body: MatterJS.BodyType;
+
+    switch (shapeType) {
+      case ShapeType.RECTANGLE:
+        body = matter.add.rectangle(
+          x,
+          y,
+          Collider.width[eid],
+          Collider.height[eid],
+          options
+        );
+        break;
+      case ShapeType.CIRCLE:
+        body = matter.add.circle(x, y, Collider.width[eid], options);
+        break;
+      case ShapeType.POLYGON:
+        body = matter.add.polygon(
+          x,
+          y,
+          Collider.sides[eid],
+          Collider.width[eid],
+          options
+        );
+        break;
+      default:
+        continue;
+    }
+
+    // Register body and add PhysicsRef
+    world.physics.bodies.set(body.id, body);
+    addComponent(world, eid, PhysicsRef);
+    PhysicsRef.bodyId[eid] = body.id;
+  }
+};
+
+// Sync Transform from Matter.js bodies (Matter is source of truth)
+export const physicsSyncSystem = (world: GameWorld): void => {
+  const entities = query(world, [Transform, PhysicsRef]);
+
+  for (const eid of entities) {
+    const body = world.physics.bodies.get(PhysicsRef.bodyId[eid]);
     if (body) {
-      Rotation.angle[eid] = body.angle;
+      Transform.x[eid] = body.position.x;
+      Transform.y[eid] = body.position.y;
+      Transform.rotation[eid] = body.angle;
     }
   }
 };
@@ -45,15 +97,14 @@ export const trolleyMovementSystem = (
 ): void => {
   const entities = query(world, [
     Trolley,
-    Position,
-    PhysicsBody,
+    Transform,
+    PhysicsRef,
     ClawController,
   ]);
   const { trolleySpeed, wellLeft, clawSpread } = world.config;
 
   for (const eid of entities) {
-    const bodyId = PhysicsBody.bodyId[eid];
-    const body = world.physics.bodies.get(bodyId);
+    const body = world.physics.bodies.get(PhysicsRef.bodyId[eid]);
     if (!body) continue;
 
     const isDescending = ClawController.isDescending[eid] === 1;
@@ -82,11 +133,10 @@ export const trolleyMovementSystem = (
 // Handle claw descent/ascent
 export const clawSequenceSystem = (
   world: GameWorld,
-  actionPressed: boolean,
-  matter: MatterPhysics
+  actionPressed: boolean
 ): void => {
-  const trolleyEntities = query(world, [Trolley, PhysicsBody, ClawController]);
-  const ropeEntities = query(world, [RopeLink, Position, PhysicsBody]);
+  const trolleyEntities = query(world, [Trolley, PhysicsRef, ClawController]);
+  const ropeEntities = query(world, [RopeLink, Transform, PhysicsRef]);
 
   for (const eid of trolleyEntities) {
     const isDescending = ClawController.isDescending[eid] === 1;
@@ -101,7 +151,7 @@ export const clawSequenceSystem = (
     let lastLinkY = 0;
     for (const ropeEid of ropeEntities) {
       if (RopeLink.index[ropeEid] === world.config.ropeLinks - 1) {
-        lastLinkY = Position.y[ropeEid];
+        lastLinkY = Transform.y[ropeEid];
         break;
       }
     }
@@ -126,12 +176,9 @@ export const clawSequenceSystem = (
 };
 
 // Update claw hinge positions based on open/closed state
-export const clawHingeSystem = (
-  world: GameWorld,
-  matter: MatterPhysics
-): void => {
+export const clawHingeSystem = (world: GameWorld): void => {
   const trolleyEntities = query(world, [Trolley, ClawController]);
-  const hingeEntities = query(world, [ClawHinge, PhysicsBody, HingeConstraint]);
+  const hingeEntities = query(world, [ClawHinge, PhysicsRef, ConstraintRef]);
 
   for (const trolleyEid of trolleyEntities) {
     const isOpen = ClawController.isOpen[trolleyEid] === 1;
@@ -145,7 +192,7 @@ export const clawHingeSystem = (
     // Update hinge constraint positions
     for (const hingeEid of hingeEntities) {
       const side = ClawHinge.side[hingeEid];
-      const constraintId = HingeConstraint.constraintId[hingeEid];
+      const constraintId = ConstraintRef.constraintId[hingeEid];
       const constraint = world.constraints.items.get(constraintId);
 
       if (constraint) {
@@ -163,8 +210,8 @@ export const runGameSystems = (
   actionPressed: boolean,
   matter: MatterPhysics
 ): void => {
-  physicsToEcsSystem(world);
+  physicsSyncSystem(world);
   trolleyMovementSystem(world, leftPressed, rightPressed, matter);
-  clawSequenceSystem(world, actionPressed, matter);
-  clawHingeSystem(world, matter);
+  clawSequenceSystem(world, actionPressed);
+  clawHingeSystem(world);
 };
