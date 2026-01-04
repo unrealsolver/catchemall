@@ -1,21 +1,17 @@
 import Phaser from "phaser";
-import { addComponent } from "bitecs";
 import {
-  createGameWorld,
-  GameWorld,
-  createWall,
-  createTrolley,
-  createRopeLink,
-  createClawHinge,
-  createToy,
-  physicsSpawnSystem,
-  runGameSystems,
-  PhysicsRef,
-  ConstraintRef,
-} from "../ecs";
+  GameConfig,
+  createGameConfig,
+  GameState,
+  ClawBodies,
+  createClawState,
+  updateTrolleyMovement,
+  updateClawSequence,
+  updateClawHinges,
+} from "../game";
 
 export class MainScene extends Phaser.Scene {
-  private world!: GameWorld;
+  private state!: GameState;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private spaceKey!: Phaser.Input.Keyboard.Key;
   private graphics!: Phaser.GameObjects.Graphics;
@@ -24,62 +20,47 @@ export class MainScene extends Phaser.Scene {
     super({ key: "MainScene" });
   }
 
-  preload(): void {
-    // No assets needed for prototype
-  }
+  preload(): void {}
 
   create(): void {
-    // Initialize ECS world
-    this.world = createGameWorld();
+    const config = createGameConfig();
+    const bodies = this.createPhysicsObjects(config);
 
-    // 1. Create all ECS entities (declarative - no physics yet)
-    const entityIds = this.createEntities();
+    this.state = {
+      config,
+      claw: createClawState(config.claw.spread),
+      bodies,
+    };
 
-    // 2. Spawn physics bodies from Collider components
-    physicsSpawnSystem(this.world, this.matter);
-
-    // 3. Create constraints (needs bodies to exist)
-    this.createConstraints(entityIds);
-
-    // Setup input
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.spaceKey = this.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
     );
 
-    // Graphics for UI overlay
     this.graphics = this.add.graphics();
     this.drawUI();
 
-    // Add title
     this.add
-      .text(this.world.config.view.width / 2, 20, "CLAW MACHINE", {
+      .text(config.view.width / 2, 20, "CLAW MACHINE", {
         fontSize: "24px",
         color: "#ffffff",
         fontFamily: "monospace",
       })
       .setOrigin(0.5);
 
-    // Drop zone label
     this.add
-      .text(
-        this.world.config.wellLeft / 2,
-        this.world.config.wellTop + 30,
-        "DROP\nZONE",
-        {
-          fontSize: "14px",
-          color: "#44aa44",
-          fontFamily: "monospace",
-          align: "center",
-        }
-      )
+      .text(config.well.left / 2, config.well.top + 30, "DROP\nZONE", {
+        fontSize: "14px",
+        color: "#44aa44",
+        fontFamily: "monospace",
+        align: "center",
+      })
       .setOrigin(0.5);
 
-    // Instructions
     this.add
       .text(
-        this.world.config.view.width / 2,
-        this.world.config.view.height - 15,
+        config.view.width / 2,
+        config.view.height - 15,
         "← → Move   SPACE Drop Claw",
         {
           fontSize: "12px",
@@ -90,88 +71,117 @@ export class MainScene extends Phaser.Scene {
       .setOrigin(0.5);
   }
 
-  private createEntities(): {
-    trolleyEid: number;
-    linkEids: number[];
-    leftHingeEid: number;
-    rightHingeEid: number;
-  } {
-    const {
-      wellLeft,
-      wallWidth,
-      wellTop,
-      wellBottom,
-      trolleyY,
-      ropeLinks,
-      linkLength,
-      clawRadius,
-      clawSpread,
-    } = this.world.config;
-    const trolleyX = (wellLeft + this.world.config.view.width) / 2;
+  private createPhysicsObjects(config: GameConfig): ClawBodies {
+    const { well, trolley: trolleyConfig, claw: clawConfig } = config;
+    const trolleyX = (well.left + config.view.width) / 2;
 
-    // Arena walls
-    // Basin floor
-    createWall(
-      this.world,
-      this.world.config.view.width / 2,
-      wellBottom,
-      this.world.config.view.width + wallWidth * 2,
-      wallWidth
+    // Walls
+    this.createWall(
+      config.view.width / 2,
+      well.bottom,
+      config.view.width + well.wallWidth * 2,
+      well.wallWidth
     );
-
-    // Basin left wall
-    createWall(
-      this.world,
-      wellLeft,
-      (wellTop + wellBottom) / 2,
+    this.createWall(
+      well.left,
+      (well.top + well.bottom) / 2,
       20,
-      wellBottom - wellTop + 20
+      well.bottom - well.top + 20
     );
-
-    // Basin right wall
-    createWall(
-      this.world,
-      this.world.config.view.width + wallWidth / 2,
-      (wellTop + wellBottom) / 2,
-      wallWidth,
-      wellBottom - wellTop + 20
+    this.createWall(
+      config.view.width + well.wallWidth / 2,
+      (well.top + well.bottom) / 2,
+      well.wallWidth,
+      well.bottom - well.top + 20
     );
-
-    // Drop zone left wall
-    createWall(
-      this.world,
-      -wallWidth,
-      (wellTop + wellBottom) / 2,
-      wallWidth,
-      wellBottom - wellTop + 20
+    this.createWall(
+      -well.wallWidth,
+      (well.top + well.bottom) / 2,
+      well.wallWidth,
+      well.bottom - well.top + 20
     );
 
     // Trolley
-    const trolleyEid = createTrolley(this.world, trolleyX, trolleyY);
+    const trolley = this.matter.add.rectangle(
+      trolleyX,
+      trolleyConfig.y,
+      60,
+      20,
+      { isStatic: true, friction: 0.3, restitution: 0.1 }
+    );
 
     // Rope links
-    const linkEids: number[] = [];
-    for (let i = 0; i < ropeLinks; i++) {
-      const linkY = trolleyY + 20 + i * linkLength;
-      const linkEid = createRopeLink(this.world, trolleyX, linkY, i);
-      linkEids.push(linkEid);
+    const ropeLinks: MatterJS.BodyType[] = [];
+    let prevBody: MatterJS.BodyType = trolley;
+
+    for (let i = 0; i < clawConfig.ropeLinks; i++) {
+      const linkY = trolleyConfig.y + 20 + i * clawConfig.linkLength;
+      const link = this.matter.add.rectangle(
+        trolleyX,
+        linkY,
+        4,
+        clawConfig.linkLength,
+        { friction: 0.1, restitution: 0.1, density: 0.001 }
+      );
+      ropeLinks.push(link);
+
+      this.matter.add.constraint(
+        prevBody,
+        link,
+        clawConfig.linkLength * 0.5,
+        0.9,
+        {
+          pointA: { x: 0, y: i === 0 ? 10 : clawConfig.linkLength / 2 },
+          pointB: { x: 0, y: -clawConfig.linkLength / 2 },
+          damping: 0.1,
+        }
+      );
+
+      prevBody = link;
     }
 
     // Claw hinges
-    const lastLinkY = trolleyY + 20 + (ropeLinks - 1) * linkLength;
-    const hingeY = lastLinkY + linkLength / 2 + clawRadius;
+    const lastLinkY =
+      trolleyConfig.y + 20 + (clawConfig.ropeLinks - 1) * clawConfig.linkLength;
+    const hingeY =
+      lastLinkY + clawConfig.linkLength / 2 + clawConfig.hingeRadius;
 
-    const leftHingeEid = createClawHinge(
-      this.world,
-      trolleyX - clawSpread,
+    const leftHinge = this.matter.add.circle(
+      trolleyX - clawConfig.spread,
       hingeY,
-      -1
+      clawConfig.hingeRadius,
+      { friction: 0.8, restitution: 0.1, density: 0.002 }
     );
-    const rightHingeEid = createClawHinge(
-      this.world,
-      trolleyX + clawSpread,
+
+    const rightHinge = this.matter.add.circle(
+      trolleyX + clawConfig.spread,
       hingeY,
-      1
+      clawConfig.hingeRadius,
+      { friction: 0.8, restitution: 0.1, density: 0.002 }
+    );
+
+    const lastLink = ropeLinks[ropeLinks.length - 1];
+
+    const leftConstraint = this.matter.add.constraint(
+      lastLink,
+      leftHinge,
+      0,
+      0.8,
+      {
+        pointA: { x: 0, y: clawConfig.linkLength / 2 },
+        pointB: { x: clawConfig.spread, y: 0 },
+      }
+    );
+
+    const rightConstraint = this.matter.add.constraint(
+      lastLink,
+      rightHinge,
+      0,
+      0.8,
+      {
+        pointA: { x: 0, y: clawConfig.linkLength / 2 },
+        pointB: { x: -clawConfig.spread, y: 0 },
+      }
     );
 
     // Toys
@@ -179,130 +189,85 @@ export class MainScene extends Phaser.Scene {
       const sides = 4 + Math.floor(Math.random() * 3);
       const radius = 15 + Math.random() * 15;
       const x =
-        wellLeft +
-        40 +
-        Math.random() * (this.world.config.view.width - wellLeft - 80);
-      const y = wellBottom - 60 - Math.random() * 200;
-      createToy(this.world, x, y, sides, radius);
+        well.left + 40 + Math.random() * (config.view.width - well.left - 80);
+      const y = well.bottom - 60 - Math.random() * 200;
+      this.matter.add.polygon(x, y, sides, radius, {
+        friction: 0.5,
+        restitution: 0.3,
+        density: 0.002,
+      });
     }
 
-    return { trolleyEid, linkEids, leftHingeEid, rightHingeEid };
+    return {
+      trolley,
+      ropeLinks,
+      leftHinge,
+      rightHinge,
+      leftConstraint,
+      rightConstraint,
+    };
   }
 
-  private createConstraints(entityIds: {
-    trolleyEid: number;
-    linkEids: number[];
-    leftHingeEid: number;
-    rightHingeEid: number;
-  }): void {
-    const { trolleyEid, linkEids, leftHingeEid, rightHingeEid } = entityIds;
-    const { linkLength, clawSpread } = this.world.config;
-
-    // Get bodies from entity PhysicsRef
-    const getBody = (eid: number) =>
-      this.world.physics.bodies.get(PhysicsRef.bodyId[eid])!;
-
-    // Connect rope links
-    let prevBody = getBody(trolleyEid);
-    for (let i = 0; i < linkEids.length; i++) {
-      const linkBody = getBody(linkEids[i]);
-
-      const constraint = this.matter.add.constraint(
-        prevBody,
-        linkBody,
-        linkLength * 0.5,
-        0.9,
-        {
-          pointA: { x: 0, y: i === 0 ? 10 : linkLength / 2 },
-          pointB: { x: 0, y: -linkLength / 2 },
-          damping: 0.1,
-        }
-      );
-      this.world.constraints.items.set(constraint.id, constraint);
-
-      prevBody = linkBody;
-    }
-
-    // Connect claw hinges to last rope link
-    const lastLinkBody = getBody(linkEids[linkEids.length - 1]);
-    const leftHingeBody = getBody(leftHingeEid);
-    const rightHingeBody = getBody(rightHingeEid);
-
-    const leftConstraint = this.matter.add.constraint(
-      lastLinkBody,
-      leftHingeBody,
-      0,
-      0.8,
-      {
-        pointA: { x: 0, y: linkLength / 2 },
-        pointB: { x: clawSpread, y: 0 },
-      }
-    );
-    this.world.constraints.items.set(leftConstraint.id, leftConstraint);
-
-    // Add ConstraintRef to hinge entity for clawHingeSystem
-    addComponent(this.world, leftHingeEid, ConstraintRef);
-    ConstraintRef.constraintId[leftHingeEid] = leftConstraint.id;
-
-    const rightConstraint = this.matter.add.constraint(
-      lastLinkBody,
-      rightHingeBody,
-      0,
-      0.8,
-      {
-        pointA: { x: 0, y: linkLength / 2 },
-        pointB: { x: -clawSpread, y: 0 },
-      }
-    );
-    this.world.constraints.items.set(rightConstraint.id, rightConstraint);
-
-    addComponent(this.world, rightHingeEid, ConstraintRef);
-    ConstraintRef.constraintId[rightHingeEid] = rightConstraint.id;
+  private createWall(
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ): MatterJS.BodyType {
+    return this.matter.add.rectangle(x, y, width, height, {
+      isStatic: true,
+      friction: 0.3,
+      restitution: 0.2,
+    });
   }
 
-  update(_time: number, delta: number): void {
-    // Update world time
-    this.world.time.delta = delta;
-    this.world.time.elapsed += delta;
+  update(): void {
+    const { state } = this;
+    const { bodies, claw, config } = state;
 
-    // Read input
     const leftPressed = this.cursors.left.isDown;
     const rightPressed = this.cursors.right.isDown;
     const actionPressed = Phaser.Input.Keyboard.JustDown(this.spaceKey);
 
-    // Run ECS systems
-    runGameSystems(
-      this.world,
+    updateTrolleyMovement(
+      bodies.trolley,
+      claw,
+      config,
       leftPressed,
       rightPressed,
-      actionPressed,
       this.matter
     );
 
-    // Update UI
+    const lastLink = bodies.ropeLinks[bodies.ropeLinks.length - 1];
+    updateClawSequence(claw, lastLink.position.y, config, actionPressed);
+
+    updateClawHinges(
+      claw,
+      bodies.leftConstraint,
+      bodies.rightConstraint,
+      config
+    );
+
     this.drawUI();
   }
 
   private drawUI(): void {
     this.graphics.clear();
+    const { well } = this.state.config;
 
-    const { wellLeft, wallWidth, wellTop, wellBottom } = this.world.config;
-
-    // Drop zone highlight
     this.graphics.lineStyle(2, 0x44aa44, 0.5);
     this.graphics.strokeRect(
       0,
-      wellTop + 5,
-      wellLeft - wallWidth / 2,
-      wellBottom - wellTop - wallWidth / 2
+      well.top + 5,
+      well.left - well.wallWidth / 2,
+      well.bottom - well.top - well.wallWidth / 2
     );
 
-    // Instructions background
     this.graphics.fillStyle(0x000000, 0.5);
     this.graphics.fillRect(
       0,
-      this.world.config.view.height - 30,
-      this.world.config.view.width,
+      this.state.config.view.height - 30,
+      this.state.config.view.width,
       30
     );
   }
