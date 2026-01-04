@@ -22,6 +22,7 @@ const server = Bun.serve({
         const result = await Bun.build({
           entrypoints: [filePath],
           format: "esm",
+          sourcemap: "inline",
         });
         if (result.success && result.outputs.length > 0) {
           const js = await result.outputs[0].text();
