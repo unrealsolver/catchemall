@@ -1,4 +1,4 @@
-import Phaser, { Game } from "phaser";
+import Phaser from "phaser";
 import {
   GameConfig,
   createGameConfig,
@@ -9,12 +9,22 @@ import {
   updateClawSequence,
   updateClawHinges,
 } from "../game";
+import { Epicycle } from "../game/Epicycle";
+
+export type MainSceneContext = {
+  cursors: Phaser.Types.Input.Keyboard.CursorKeys;
+  spaceKey: Phaser.Input.Keyboard.Key;
+  matter: Phaser.Physics.Matter.World;
+  state: GameState;
+};
 
 export class MainScene extends Phaser.Scene {
   private state!: GameState;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private spaceKey!: Phaser.Input.Keyboard.Key;
   private graphics!: Phaser.GameObjects.Graphics;
+
+  public ctx!: MainSceneContext;
 
   constructor() {
     super({ key: "MainScene" });
@@ -30,12 +40,20 @@ export class MainScene extends Phaser.Scene {
       config,
       claw: createClawState(config.claw.spread),
       bodies,
+      wind: new Epicycle({ baseAmp: 1.0, baseOmega: 0.9, seed: 13 }),
     };
 
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.spaceKey = this.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
     );
+
+    this.ctx = {
+      cursors: this.cursors,
+      spaceKey: this.spaceKey,
+      matter: this.matter.world,
+      state: this.state,
+    };
 
     this.graphics = this.add.graphics();
     this.drawUI();
@@ -118,51 +136,60 @@ export class MainScene extends Phaser.Scene {
     const { well, trolley: trolleyConfig, claw: clawConfig } = config;
     const trolleyX = (well.left + config.view.width) / 2;
 
-    // Trolley
+    //Trolley
     const trolley = this.matter.add.rectangle(
       trolleyX,
       trolleyConfig.y,
       60,
       20,
-      { isStatic: true, friction: 0.3, restitution: 0.1 }
+      {
+        isStatic: false,
+        density: 10_000,
+        frictionAir: 0.15,
+        friction: 0.6,
+        restitution: 0.1,
+      }
     );
 
     // Rope links
     const ropeLinks: MatterJS.BodyType[] = [];
     let prevBody: MatterJS.BodyType = trolley;
 
+    const linkLength = clawConfig.ropeMinL / clawConfig.ropeLinks;
+
+    const group = this.matter.world.nextGroup(true);
+
     for (let i = 0; i < clawConfig.ropeLinks; i++) {
-      const linkY = trolleyConfig.y + 20 + i * clawConfig.linkLength;
-      const link = this.matter.add.rectangle(
-        trolleyX,
-        linkY,
-        4,
-        clawConfig.linkLength,
-        { friction: 0.1, restitution: 0.1, density: 0.001 }
-      );
+      const linkY = trolleyConfig.y + 20 + i * linkLength;
+      const link = this.matter.add.rectangle(trolleyX, linkY, 4, linkLength, {
+        collisionFilter: { group },
+        friction: 0.1,
+        frictionAir: 0.035,
+        frictionStatic: 0.5,
+        restitution: 0.1,
+        density: 0.002,
+        chamfer: { radius: 2 },
+      });
+
+      // Noise to avoid solver edge cases
+      this.matter.body.setAngle(link, Phaser.Math.FloatBetween(-0.02, 0.02));
+
       ropeLinks.push(link);
 
-      this.matter.add.constraint(
-        prevBody,
-        link,
-        clawConfig.linkLength * 0.5,
-        0.9,
-        {
-          pointA: { x: 0, y: i === 0 ? 10 : clawConfig.linkLength / 2 },
-          pointB: { x: 0, y: -clawConfig.linkLength / 2 },
-          damping: 0.1,
-        }
-      );
+      this.matter.add.constraint(prevBody, link, 2, 0.85, {
+        pointA: { x: 0, y: i === 0 ? 10 : linkLength / 2 },
+        pointB: { x: 0, y: -linkLength / 2 },
+        damping: 0.1,
+      });
 
       prevBody = link;
     }
 
     // Claw hinges
     const lastLinkY =
-      trolleyConfig.y + 20 + (clawConfig.ropeLinks - 1) * clawConfig.linkLength;
+      trolleyConfig.y + 20 + (clawConfig.ropeLinks - 1) * linkLength;
 
-    const hingeY =
-      lastLinkY + clawConfig.linkLength / 2 + clawConfig.hingeRadius;
+    const hingeY = lastLinkY + linkLength / 2 + clawConfig.hingeRadius;
 
     const leftHinge = this.matter.add.circle(
       trolleyX - clawConfig.spread,
@@ -186,7 +213,7 @@ export class MainScene extends Phaser.Scene {
       0,
       0.8,
       {
-        pointA: { x: 0, y: clawConfig.linkLength / 2 },
+        pointA: { x: 0, y: linkLength / 2 },
         pointB: { x: clawConfig.spread, y: 0 },
       }
     );
@@ -197,7 +224,7 @@ export class MainScene extends Phaser.Scene {
       0,
       0.8,
       {
-        pointA: { x: 0, y: clawConfig.linkLength / 2 },
+        pointA: { x: 0, y: linkLength / 2 },
         pointB: { x: -clawConfig.spread, y: 0 },
       }
     );
@@ -237,22 +264,15 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  update(): void {
+  update(_, delta: number): void {
     const { state } = this;
-    const { bodies, claw, config } = state;
+    const { bodies, claw, config, wind } = state;
 
-    const leftPressed = this.cursors.left.isDown;
-    const rightPressed = this.cursors.right.isDown;
     const actionPressed = Phaser.Input.Keyboard.JustDown(this.spaceKey);
 
-    updateTrolleyMovement(
-      bodies.trolley,
-      claw,
-      config,
-      leftPressed,
-      rightPressed,
-      this.matter
-    );
+    wind.step(delta);
+
+    updateTrolleyMovement(this.ctx, delta);
 
     const lastLink = bodies.ropeLinks[bodies.ropeLinks.length - 1];
     updateClawSequence(claw, lastLink.position.y, config, actionPressed);
@@ -270,6 +290,12 @@ export class MainScene extends Phaser.Scene {
   private drawUI(): void {
     this.graphics.clear();
     const { view, well, dropzone } = this.state.config;
+
+    const p1 = this.state.bodies.trolley.position;
+    const p2 = this.state.wind;
+
+    this.graphics.lineStyle(3, 0xffaa44, 0.5);
+    this.graphics.lineBetween(p1.x, p1.y, p1.x + p2.x * 100, p1.y + p2.y * 100);
 
     // DropZone
     this.graphics.lineStyle(2, 0x44aa44, 0.5);

@@ -29,12 +29,7 @@ The game is a single scene that emulates Claw Machine in 2d.
 - Use types not interfaces
 - Prefer functional code patterns
 - Avoid classes as a mild requirement
-- Avoid TS decorators
 - Do not write any tests
-- Use bitECS for Entity Component System architecture
-  - Components store data in typed arrays
-  - Systems are pure functions that query and process entities
-  - Decouple physics, rendering, and game logic
 
 # Phases
 

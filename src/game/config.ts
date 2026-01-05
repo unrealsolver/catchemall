@@ -17,6 +17,7 @@ export type TrolleyConfig = {
 
 export type ClawConfig = {
   ropeLinks: number;
+  ropeMinL: number;
   linkLength: number;
   hingeRadius: number;
   spread: number;
@@ -51,6 +52,7 @@ export const createGameConfig = (): GameConfig => ({
   },
   claw: {
     ropeLinks: 12,
+    ropeMinL: 200,
     linkLength: 8,
     hingeRadius: 12,
     spread: 35,
