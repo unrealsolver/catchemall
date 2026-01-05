@@ -1,11 +1,4 @@
-type Vec2 = { x: number; y: number };
-
-function add(a: Vec2, b: Vec2): Vec2 {
-  return { x: a.x + b.x, y: a.y + b.y };
-}
-function mul(a: Vec2, k: number): Vec2 {
-  return { x: a.x * k, y: a.y * k };
-}
+import { Vector } from "matter-js";
 
 type Stick = {
   amp: number; // length of stick (bigger -> smaller)
@@ -52,13 +45,13 @@ export class Epicycle {
   }
 
   /** Advance time and return the wind vector at new time. */
-  step(deltaMs: number): Vec2 {
+  step(deltaMs: number): Vector {
     this.t += deltaMs / 1000;
 
-    let p: Vec2 = { x: 0, y: 0 };
+    let p: Vector = { x: 0, y: 0 };
     for (const s of this.sticks) {
       const a = s.omega * this.t + s.phase;
-      p = add(p, { x: s.amp * Math.cos(a), y: s.amp * Math.sin(a) });
+      p = Vector.add(p, { x: s.amp * Math.cos(a), y: s.amp * Math.sin(a) });
     }
     this.x = p.x;
     this.y = p.y;
@@ -66,13 +59,13 @@ export class Epicycle {
   }
 
   /** If you want the “stick joints” for debugging/visualization */
-  joints(): Vec2[] {
-    let p: Vec2 = { x: 0, y: 0 };
-    const pts: Vec2[] = [{ x: 0, y: 0 }];
+  joints(): Vector[] {
+    let p: Vector = { x: 0, y: 0 };
+    const pts: Vector[] = [{ x: 0, y: 0 }];
 
     for (const s of this.sticks) {
       const a = s.omega * this.t + s.phase;
-      p = add(p, { x: s.amp * Math.cos(a), y: s.amp * Math.sin(a) });
+      p = Vector.add(p, { x: s.amp * Math.cos(a), y: s.amp * Math.sin(a) });
       pts.push({ ...p });
     }
     return pts;
