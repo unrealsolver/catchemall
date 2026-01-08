@@ -1,9 +1,10 @@
-import Phaser from "phaser";
+import Phaser, { GameObjects, Scene } from "phaser";
 import { GameConfig } from "./config";
 import { t as _t, StateMachine } from "typescript-fsm";
 import { MainScene, MainSceneContext } from "../scenes/MainScene";
-import { Body, Vector } from "matter-js";
-import type { Body as MatterBody } from "matter-js";
+import { BodyType } from "matter";
+
+const { Body, Bodies, Vector } = Phaser.Physics.Matter.Matter;
 
 export type ClawState = {
   isDescending: boolean;
@@ -30,6 +31,7 @@ type States =
   | "CARRY"
   | "DROP"
   | "RESTORE";
+
 type Events = "CATCH" | "FSM_FORWARD";
 
 const t = _t<States, Events, () => void>;
@@ -53,7 +55,7 @@ function fsmForward() {
   return fsm.dispatch("FSM_FORWARD");
 }
 
-export function clampSpeed(body: MatterBody, maxSpeed: number) {
+export function clampSpeed(body: MatterJS.BodyType, maxSpeed: number) {
   const vx = body.velocity.x;
   const vy = body.velocity.y;
   const s = Math.hypot(vx, vy);
@@ -64,11 +66,11 @@ export function clampSpeed(body: MatterBody, maxSpeed: number) {
 }
 
 export function applyAccel(
-  body: MatterBody,
+  body: MatterJS.BodyType,
   ax: number,
   ay: number,
   deltaMs: number,
-  offset: Vector = { x: 0, y: 0 }
+  offset: MatterJS.Vector = { x: 0, y: 0 }
 ) {
   // scale vs 60fps so it feels stable across frame rates
   const dt = deltaMs / 16.6667;
@@ -82,6 +84,81 @@ export function applyAccel(
 
 function isBody(b: any): b is Body {
   return b && b.position && b.velocity && typeof b.mass === "number";
+}
+
+export class Arm {
+  hinges: [proximal: MatterJS.BodyType, distal: MatterJS.BodyType];
+  body: Phaser.Physics.Matter.Sprite;
+  compound: BodyType;
+
+  constructor(scene: Scene) {
+    const r = 7;
+    const link = 40;
+    const left = scene.matter.bodies.circle(0, 0, r);
+    const right = scene.matter.bodies.circle(0, 0, r);
+    Body.translate(left, { x: -link / 2, y: 0 });
+    Body.translate(right, { x: link / 2, y: 0 });
+    this.hinges = [left, right];
+    const compound = scene.matter.body.create({
+      parts: [left, right],
+      frictionAir: 0.02,
+      restitution: 0.1,
+      friction: 0.6,
+      density: 0.002,
+    });
+    this.compound = compound;
+    const obj = scene.add.rectangle(0, 0, 40, 10, 0xff0000);
+    const ent = scene.matter.add.gameObject(obj, compound);
+    this.body = ent as Phaser.Physics.Matter.Sprite;
+  }
+}
+
+export class Claw {
+  private scene: Scene;
+  hinges: [];
+  base: BodyType;
+
+  private makeHinge(arm: Arm, isRight: boolean = false) {
+    this.scene.matter.add.constraint(this.base, arm.compound, 50, 0.5, {
+      pointA: { x: isRight ? 5 : -5, y: 5 },
+      pointB: { x: isRight ? 20 : -20, y: 0 },
+      angularStiffness: 0.01,
+      damping: 0.01,
+    });
+    this.scene.matter.add.constraint(
+      this.base,
+      arm.compound,
+      50,
+      0.5,
+
+      {
+        pointA: { x: isRight ? 5 : -5, y: 5 },
+        pointB: { x: isRight ? 10 : -10, y: 0 },
+        angularStiffness: 0.01,
+        damping: 0.01,
+      }
+    );
+  }
+
+  constructor(scene: Scene, x: number, y: number) {
+    this.scene = scene;
+    this.base = scene.matter.add.rectangle(x, y, 20, 20, { density: 0.01 });
+
+    const leftArm = new Arm(scene);
+    leftArm.body.setPosition(
+      this.base.position.x - 30,
+      this.base.position.y + 50
+    );
+
+    const rightArm = new Arm(scene);
+    rightArm.body.setPosition(
+      this.base.position.x + 30,
+      this.base.position.y + 50
+    );
+
+    this.makeHinge(rightArm, true);
+    this.makeHinge(leftArm);
+  }
 }
 
 export const createClawState = (spread: number): ClawState => ({

@@ -8,6 +8,8 @@ import {
   updateTrolleyMovement,
   updateClawSequence,
   updateClawHinges,
+  Arm,
+  Claw,
 } from "../game";
 import { Epicycle } from "../game/Epicycle";
 
@@ -191,50 +193,25 @@ export class MainScene extends Phaser.Scene {
 
     const hingeY = lastLinkY + linkLength / 2 + clawConfig.hingeRadius;
 
-    const leftHinge = this.matter.add.circle(
-      trolleyX - clawConfig.spread,
-      hingeY,
-      clawConfig.hingeRadius,
-      { friction: 0.8, restitution: 0.1, density: 0.002 }
-    );
-
-    const rightHinge = this.matter.add.circle(
-      trolleyX + clawConfig.spread,
-      hingeY,
-      clawConfig.hingeRadius,
-      { friction: 0.8, restitution: 0.1, density: 0.002 }
-    );
-
     const lastLink = ropeLinks[ropeLinks.length - 1];
 
-    const leftConstraint = this.matter.add.constraint(
-      lastLink,
-      leftHinge,
-      0,
-      0.8,
-      {
-        pointA: { x: 0, y: linkLength / 2 },
-        pointB: { x: clawConfig.spread, y: 0 },
-      }
+    const claw = new Claw(
+      this,
+      lastLink.position.x,
+      lastLink.position.y + linkLength
     );
 
-    const rightConstraint = this.matter.add.constraint(
-      lastLink,
-      rightHinge,
-      0,
-      0.8,
-      {
-        pointA: { x: 0, y: linkLength / 2 },
-        pointB: { x: -clawConfig.spread, y: 0 },
-      }
-    );
+    this.matter.add.constraint(lastLink, claw.base, linkLength / 2, 0.85, {
+      pointA: { x: 0, y: linkLength / 2 },
+      pointB: { x: 0, y: -10 },
+    });
 
     return {
       trolley,
-      leftConstraint,
-      rightConstraint,
-      leftHinge,
-      rightHinge,
+      leftConstraint: undefined,
+      rightConstraint: undefined,
+      leftHinge: undefined,
+      rightHinge: undefined,
       ropeLinks,
     };
   }
@@ -277,12 +254,12 @@ export class MainScene extends Phaser.Scene {
     const lastLink = bodies.ropeLinks[bodies.ropeLinks.length - 1];
     updateClawSequence(claw, lastLink.position.y, config, actionPressed);
 
-    updateClawHinges(
-      claw,
-      bodies.leftConstraint,
-      bodies.rightConstraint,
-      config
-    );
+    //updateClawHinges(
+    //  claw,
+    //  bodies.leftConstraint,
+    //  bodies.rightConstraint,
+    //  config
+    //);
 
     this.drawUI();
   }

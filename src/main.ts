@@ -10,9 +10,10 @@ const config: Phaser.Types.Core.GameConfig = {
   physics: {
     default: "matter",
     matter: {
-      positionIterations: 10,
-      velocityIterations: 8,
-      constraintIterations: 4,
+      enableSleeping: true,
+      positionIterations: 16,
+      velocityIterations: 10,
+      constraintIterations: 6,
       gravity: { x: 0, y: 1 },
       debug: true,
     },
