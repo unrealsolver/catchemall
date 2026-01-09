@@ -7,7 +7,6 @@
         "@types/matter-js": "^0.20.2",
         "matter-js": "^0.20.0",
         "phaser": "^3.87.0",
-        "typescript-fsm": "^1.6.0",
       },
       "devDependencies": {
         "@types/bun": "^1.3.5",
@@ -246,8 +245,6 @@
     "tinyglobby": ["tinyglobby@0.2.15", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.3" } }, "sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ=="],
 
     "to-regex-range": ["to-regex-range@5.0.1", "", { "dependencies": { "is-number": "^7.0.0" } }, "sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ=="],
-
-    "typescript-fsm": ["typescript-fsm@1.6.0", "", {}, "sha512-wmDVbIZ/iyytlNOLdwyvLTdnArSZw48IwjbHuIcZo+DA2do27pOM+hZJsjPzcQ0ux/lzkZ1i1PPfP16GOGPYuQ=="],
 
     "undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 

@@ -7,8 +7,6 @@ import {
   createClawState,
   updateTrolleyMovement,
   updateClawSequence,
-  updateClawHinges,
-  Arm,
   Claw,
 } from "../game";
 import { Epicycle } from "../game/Epicycle";

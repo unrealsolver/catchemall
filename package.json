@@ -18,8 +18,7 @@
   "dependencies": {
     "@types/matter-js": "^0.20.2",
     "matter-js": "^0.20.0",
-    "phaser": "^3.87.0",
-    "typescript-fsm": "^1.6.0"
+    "phaser": "^3.87.0"
   },
   "lint-staged": {
     "*.{js,ts,json,html,css,md}": "prettier --write"

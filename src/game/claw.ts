@@ -1,17 +1,15 @@
-import Phaser, { GameObjects, Scene } from "phaser";
+import Phaser, { Scene } from "phaser";
 import { GameConfig } from "./config";
-import { t as _t, StateMachine } from "typescript-fsm";
-import { MainScene, MainSceneContext } from "../scenes/MainScene";
+import { MainSceneContext } from "../scenes/MainScene";
 import { BodyType } from "matter";
 
-const { Body, Bodies, Vector } = Phaser.Physics.Matter.Matter;
+const { Body, Vector } = Phaser.Physics.Matter.Matter;
 
 export type ClawState = {
   isDescending: boolean;
   isAscending: boolean;
   isOpen: boolean;
   currentSpread: number;
-  fsm: typeof fsm;
 };
 
 export type ClawBodies = {
@@ -22,38 +20,6 @@ export type ClawBodies = {
   leftConstraint: MatterJS.ConstraintType;
   rightConstraint: MatterJS.ConstraintType;
 };
-
-type States =
-  | "ACTIVE"
-  | "DESCENDING"
-  | "CLOSING"
-  | "ASCEND"
-  | "CARRY"
-  | "DROP"
-  | "RESTORE";
-
-type Events = "CATCH" | "FSM_FORWARD";
-
-const t = _t<States, Events, () => void>;
-
-const transitions = [
-  t("ACTIVE", "CATCH", "DESCENDING"),
-  t("DESCENDING", "FSM_FORWARD", "CLOSING", justLog),
-  t("CLOSING", "FSM_FORWARD", "ASCEND", justLog),
-  t("ASCEND", "FSM_FORWARD", "CARRY", justLog),
-  t("CARRY", "FSM_FORWARD", "DROP", justLog),
-  t("DROP", "FSM_FORWARD", "RESTORE", justLog),
-];
-
-const fsm = new StateMachine<States, Events>("ACTIVE", transitions);
-
-function justLog() {
-  console.log(fsm.getState());
-}
-
-function fsmForward() {
-  return fsm.dispatch("FSM_FORWARD");
-}
 
 export function clampSpeed(body: MatterJS.BodyType, maxSpeed: number) {
   const vx = body.velocity.x;
@@ -166,7 +132,6 @@ export const createClawState = (spread: number): ClawState => ({
   isAscending: false,
   isOpen: true,
   currentSpread: spread,
-  fsm,
 });
 
 export const updateTrolleyMovement = (
@@ -184,37 +149,20 @@ export const updateTrolleyMovement = (
 
   if (!isBody(trolley)) return;
 
-  const fsmState = claw.fsm.getState();
-  if (fsmState === "ACTIVE") {
-    let dx = 0;
+  if (rightPressed) applyAccel(trolley, 6, 0, delta);
+  if (leftPressed) applyAccel(trolley, -6, 0, delta);
+  if (downPressed) applyAccel(trolley, 0, 5, delta);
 
-    if (rightPressed) applyAccel(trolley, 6, 0, delta);
-    if (leftPressed) applyAccel(trolley, -6, 0, delta);
-    if (downPressed) applyAccel(trolley, 0, 5, delta);
+  // Thrust
+  applyAccel(
+    trolley,
+    0,
+    -1 - 100 * Math.pow(trolley.position.y / state.config.view.height / 2, 2),
+    delta
+  );
 
-    // Thrust
-    applyAccel(
-      trolley,
-      0,
-      -1 - 100 * Math.pow(trolley.position.y / state.config.view.height / 2, 2),
-      delta
-    );
-
-    // Wind
-    applyAccel(trolley, wind.x, wind.y, delta, { x: 0, y: -5 });
-
-    const newX = trolley.position.x + dx;
-    const minX = config.well.left + config.claw.spread + 20;
-    const maxX = config.view.width - config.claw.spread - 20;
-
-    if (newX >= minX && newX <= maxX) {
-      //ctx.matter.body.setPosition(trolley, {
-      //  x: newX,
-      //  y: trolley.position.y,
-      //});
-    }
-  } else if (fsmState === "DESCENDING") {
-  }
+  // Wind
+  applyAccel(trolley, wind.x, wind.y, delta, { x: 0, y: -5 });
 };
 
 export const updateClawSequence = (
