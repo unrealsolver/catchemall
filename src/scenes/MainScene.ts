@@ -10,7 +10,7 @@ import {
   Claw,
 } from "../game";
 import { Epicycle } from "../game/Epicycle";
-import { BodyType } from "matter";
+import { BodyType, Vector } from "matter";
 import { createIrregularPolygon } from "../utils";
 
 export type MainSceneContext = {
@@ -20,10 +20,17 @@ export type MainSceneContext = {
   state: GameState;
 };
 
+// Override physics simulator tickrate
+const PHYSICS = {
+  TARGET_DT: 1000 / 120, // 120Hz
+  MAX_STEPS: 12,
+};
+
 export class MainScene extends Phaser.Scene {
   private state!: GameState;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private graphics!: Phaser.GameObjects.Graphics;
+  private unprocessedTime: number = 0; // Separate physics clock system
 
   public ctx!: MainSceneContext;
 
@@ -210,7 +217,7 @@ export class MainScene extends Phaser.Scene {
 
   private createToys({ view, well }: GameConfig): void {
     const TOY_SIZE = 22;
-    const TOYS_LIMIT = 20;
+    const TOYS_LIMIT = 5;
 
     for (let i = 0; i < TOYS_LIMIT - 1; i++) {
       const toysPackSize = 4 + Math.floor(Math.random() * 3); // 4–6 polygons
@@ -294,7 +301,27 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  update(_: never, delta: number): void {
+  private handlePhysics(_time: number, delta: number) {
+    // delta is in ms (from Phaser)
+    this.unprocessedTime += delta;
+
+    // Clamp after tab-switch / hitch so you don't do 500 steps in one frame
+    const maxBuffer = PHYSICS.TARGET_DT * PHYSICS.MAX_STEPS;
+    if (this.unprocessedTime > maxBuffer) this.unprocessedTime = maxBuffer;
+
+    let steps = 0;
+    while (
+      this.unprocessedTime >= PHYSICS.TARGET_DT &&
+      steps < PHYSICS.MAX_STEPS
+    ) {
+      this.matter.world.step(PHYSICS.TARGET_DT);
+      this.unprocessedTime -= PHYSICS.TARGET_DT;
+      steps++;
+    }
+  }
+
+  update(time: number, delta: number): void {
+    this.handlePhysics(time, delta);
     const { state } = this;
     const { bodies, claw, config, wind } = state;
 
