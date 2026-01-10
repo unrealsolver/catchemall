@@ -68,6 +68,7 @@ export class MainScene extends Phaser.Scene {
     const title = document.createElement("div");
 
     title.innerHTML = "AI SLOP MASTER 3000 TUNK TUNK SAHUR MACHINE";
+    title.setAttribute("style", "font-weight: 800; font-size: 1.25rem;");
     this.add.dom(config.view.width / 2, 20, title).setOrigin(0.5);
 
     this.add
@@ -166,7 +167,7 @@ export class MainScene extends Phaser.Scene {
     for (let i = 0; i < clawConfig.ropeLinks; i++) {
       const linkY = trolleyConfig.y + 20 + i * linkLength;
       const link = this.matter.add.rectangle(trolleyX, linkY, 4, linkLength, {
-        collisionFilter: { group },
+        collisionFilter: { group, mask: 0 },
         friction: 0.1,
         frictionAir: 0.035,
         frictionStatic: 0.5,
