@@ -1,8 +1,10 @@
 import Phaser, { Scene } from "phaser";
 import { GameConfig } from "./config";
-import { MainSceneContext } from "../scenes/MainScene";
-import { BodyType } from "matter";
+import { t as _t, StateMachine } from "typescript-fsm";
+import { MainScene, MainSceneContext } from "../scenes/MainScene";
+import { BodyType, ConstraintType } from "matter";
 
+//@ts-ignore-next-line
 const { Body, Vector } = Phaser.Physics.Matter.Matter;
 
 export type ClawState = {
@@ -14,11 +16,15 @@ export type ClawState = {
 
 export type ClawBodies = {
   claw: Claw;
-  trolley: MatterJS.BodyType;
-  ropeLinks: MatterJS.BodyType[];
+  trolley: BodyType;
+  ropeLinks: BodyType[];
+  leftHinge: BodyType;
+  rightHinge: BodyType;
+  leftConstraint: ConstraintType;
+  rightConstraint: ConstraintType;
 };
 
-export function clampSpeed(body: MatterJS.BodyType, maxSpeed: number) {
+export function clampSpeed(body: BodyType, maxSpeed: number) {
   const vx = body.velocity.x;
   const vy = body.velocity.y;
   const s = Math.hypot(vx, vy);
@@ -78,10 +84,9 @@ export class Arm {
 
 export class Claw implements WithUpdate {
   private scene: Scene;
-  hinges: [];
+  hinges!: [];
   base: BodyType;
-  actuator: MatterJS.ConstraintType;
-
+  actuator: ConstraintType;
   openWidth = 70;
   closedWidth = 20;
   isClosed: boolean = false;
@@ -129,7 +134,7 @@ export class Claw implements WithUpdate {
     this.makeActuator(leftArm, rightArm);
   }
 
-  update(_, ctx: MainSceneContext): void {
+  update(_: any, ctx: MainSceneContext): void {
     const actionPressed = Phaser.Input.Keyboard.JustDown(ctx.spaceKey);
     if (actionPressed) {
       this.isClosed = !this.isClosed;

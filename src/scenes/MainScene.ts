@@ -10,6 +10,8 @@ import {
   Claw,
 } from "../game";
 import { Epicycle } from "../game/Epicycle";
+import { BodyType } from "matter";
+import { createIrregularPolygon } from "../utils";
 
 export type MainSceneContext = {
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -206,21 +208,82 @@ export class MainScene extends Phaser.Scene {
     };
   }
 
-  private createToys(config: GameConfig) {
-    const { view, well } = config;
-    // Toys
-    for (let i = 0; i < 8; i++) {
-      const sides = 4 + Math.floor(Math.random() * 3);
-      const radius = 15 + Math.random() * 15;
-      const x =
-        well.left + 40 + Math.random() * (config.view.width - well.left - 80);
+  private createToys({ view, well }: GameConfig): void {
+    const TOY_SIZE = 22;
+    const TOYS_LIMIT = 20;
+
+    for (let i = 0; i < TOYS_LIMIT - 1; i++) {
+      const toysPackSize = 4 + Math.floor(Math.random() * 3); // 4–6 polygons
+      const coreSides = 3 + Math.floor(Math.random() * 4); // 3–6 sides
+      const coreRadius = TOY_SIZE + Math.random() * 12;
+
+      const corePolygon = createIrregularPolygon(
+        coreSides,
+        coreRadius,
+        coreRadius * 0.65
+      );
+
+      // initial core spawn position in world
+      const x = well.left + 40 + Math.random() * (view.width - well.left - 140);
       const y = view.height - well.bottom - 60 - Math.random() * 200;
-      this.matter.add.polygon(x, y, sides, radius, {
-        friction: 0.5,
-        restitution: 0.3,
-        density: 0.002,
-      });
+
+      const core = this.matter.bodies.fromVertices(
+        x,
+        y,
+        [corePolygon],
+        { density: 0.3, restitution: 0.002, friction: 0.15 },
+        true
+      );
+
+      const toys: BodyType[] = [core];
+      const surroundToys = toysPackSize - 1;
+      const baseRadius = coreRadius + 12;
+
+      for (let p = 0; p < surroundToys; p++) {
+        const sides = 3 + Math.floor(Math.random() * 4);
+        const radius = TOY_SIZE + Math.random() * 12;
+        const polygon = createIrregularPolygon(sides, radius, radius * 0.65);
+
+        // for radial placement, (TODO? randomize it)
+        const angle = (p / surroundToys) * Math.PI * 2;
+        // position relative to core
+        const offsetX = x + Math.cos(angle) * (baseRadius + radius * 0.5);
+        const offsetY = y + Math.sin(angle) * (baseRadius + radius * 0.5);
+
+        const toy = this.matter.bodies.fromVertices(
+          offsetX,
+          offsetY,
+          [polygon],
+          { density: 0.3, restitution: 0.002, friction: 0.15 },
+          true
+        );
+
+        toys.push(toy);
+
+        // invisible "rope" between compound core and surround toy
+        const stiffness = 0.0002;
+        // extra slack for "rope"
+        const constraintLength =
+          this.getDistance(core, toy) * (1 + Math.random() * 0.15);
+
+        this.matter.add.constraint(core, toy, constraintLength, stiffness, {
+          damping: 0,
+          render: { visible: false },
+        });
+      }
+
+      // render toys //
+      for (const toy of toys) {
+        this.matter.world.add(toy);
+      }
     }
+  }
+
+  // between two bodies for constraint length
+  private getDistance(a: BodyType, b: BodyType) {
+    const dx = a.position.x - b.position.x;
+    const dy = a.position.y - b.position.y;
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
   private createWall(x: number, y: number, width: number, height: number) {
@@ -231,7 +294,7 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  update(_, delta: number): void {
+  update(_: never, delta: number): void {
     const { state } = this;
     const { bodies, claw, config, wind } = state;
 
