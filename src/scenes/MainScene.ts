@@ -21,7 +21,6 @@ export type MainSceneContext = {
 export class MainScene extends Phaser.Scene {
   private state!: GameState;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private spaceKey!: Phaser.Input.Keyboard.Key;
   private graphics!: Phaser.GameObjects.Graphics;
 
   public ctx!: MainSceneContext;
@@ -44,13 +43,12 @@ export class MainScene extends Phaser.Scene {
     };
 
     this.cursors = this.input.keyboard!.createCursorKeys();
-    this.spaceKey = this.input.keyboard!.addKey(
-      Phaser.Input.Keyboard.KeyCodes.SPACE
-    );
 
     this.ctx = {
       cursors: this.cursors,
-      spaceKey: this.spaceKey,
+      spaceKey: this.input.keyboard!.addKey(
+        Phaser.Input.Keyboard.KeyCodes.SPACE
+      ),
       matter: this.matter.world,
       state: this.state,
     };
@@ -206,11 +204,8 @@ export class MainScene extends Phaser.Scene {
 
     return {
       trolley,
-      leftConstraint: undefined,
-      rightConstraint: undefined,
-      leftHinge: undefined,
-      rightHinge: undefined,
       ropeLinks,
+      claw,
     };
   }
 
@@ -243,14 +238,13 @@ export class MainScene extends Phaser.Scene {
     const { state } = this;
     const { bodies, claw, config, wind } = state;
 
-    const actionPressed = Phaser.Input.Keyboard.JustDown(this.spaceKey);
-
     wind.step(delta);
 
     updateTrolleyMovement(this.ctx, delta);
+    this.state.bodies.claw.update(delta, this.ctx);
 
     const lastLink = bodies.ropeLinks[bodies.ropeLinks.length - 1];
-    updateClawSequence(claw, lastLink.position.y, config, actionPressed);
+    updateClawSequence(claw, lastLink.position.y, config, false);
 
     //updateClawHinges(
     //  claw,

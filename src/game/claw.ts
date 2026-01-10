@@ -13,12 +13,9 @@ export type ClawState = {
 };
 
 export type ClawBodies = {
+  claw: Claw;
   trolley: MatterJS.BodyType;
   ropeLinks: MatterJS.BodyType[];
-  leftHinge: MatterJS.BodyType;
-  rightHinge: MatterJS.BodyType;
-  leftConstraint: MatterJS.ConstraintType;
-  rightConstraint: MatterJS.ConstraintType;
 };
 
 export function clampSpeed(body: MatterJS.BodyType, maxSpeed: number) {
@@ -79,10 +76,15 @@ export class Arm {
   }
 }
 
-export class Claw {
+export class Claw implements WithUpdate {
   private scene: Scene;
   hinges: [];
   base: BodyType;
+  actuator: MatterJS.ConstraintType;
+
+  openWidth = 70;
+  closedWidth = 20;
+  isClosed: boolean = false;
 
   private makeHinge(arm: Arm, isRight: boolean = false) {
     this.scene.matter.add.constraint(this.base, arm.compound, 50, 0.5, {
@@ -124,6 +126,28 @@ export class Claw {
 
     this.makeHinge(rightArm, true);
     this.makeHinge(leftArm);
+    this.makeActuator(leftArm, rightArm);
+  }
+
+  update(_, ctx: MainSceneContext): void {
+    const actionPressed = Phaser.Input.Keyboard.JustDown(ctx.spaceKey);
+    if (actionPressed) {
+      this.isClosed = !this.isClosed;
+      this.actuator.length = this.isClosed ? this.closedWidth : this.openWidth;
+    }
+  }
+
+  private makeActuator(leftArm: Arm, rightArm: Arm) {
+    this.actuator = this.scene.matter.add.constraint(
+      leftArm.compound,
+      rightArm.compound,
+      70,
+      0.005,
+      {
+        pointA: { x: 20, y: 0 },
+        pointB: { x: -20, y: 0 },
+      }
+    );
   }
 }
 
@@ -133,6 +157,10 @@ export const createClawState = (spread: number): ClawState => ({
   isOpen: true,
   currentSpread: spread,
 });
+
+interface WithUpdate {
+  update(delta: number, ctx: MainSceneContext): void;
+}
 
 export const updateTrolleyMovement = (
   ctx: MainSceneContext,
@@ -145,7 +173,6 @@ export const updateTrolleyMovement = (
   const leftPressed = ctx.cursors.left.isDown;
   const rightPressed = ctx.cursors.right.isDown;
   const downPressed = ctx.cursors.down.isDown;
-  const actionPressed = Phaser.Input.Keyboard.JustDown(ctx.spaceKey);
 
   if (!isBody(trolley)) return;
 
