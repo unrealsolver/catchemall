@@ -72,8 +72,9 @@ export class Arm {
       parts: [left, right],
       frictionAir: 0.02,
       restitution: 0.1,
-      friction: 0.6,
-      density: 0.002,
+      friction: 0.9,
+      frictionStatic: 10,
+      density: 0.01,
     });
     this.compound = compound;
     const obj = scene.add.rectangle(0, 0, 40, 10, 0xff0000);
@@ -84,11 +85,11 @@ export class Arm {
 
 export class Claw implements WithUpdate {
   private scene: Scene;
-  hinges!: [];
   base: BodyType;
+  arms: [left: Arm, right: Arm];
   actuator: ConstraintType;
   openWidth = 70;
-  closedWidth = 20;
+  closedWidth = 25;
   isClosed: boolean = false;
 
   private makeHinge(arm: Arm, isRight: boolean = false) {
@@ -132,9 +133,13 @@ export class Claw implements WithUpdate {
     this.makeHinge(rightArm, true);
     this.makeHinge(leftArm);
     this.makeActuator(leftArm, rightArm);
+    this.arms = [leftArm, rightArm];
   }
 
   update(_: any, ctx: MainSceneContext): void {
+    clampSpeed(this.arms[0].compound, 4);
+    clampSpeed(this.arms[1].compound, 4);
+
     const actionPressed = Phaser.Input.Keyboard.JustDown(ctx.spaceKey);
     if (actionPressed) {
       this.isClosed = !this.isClosed;
@@ -146,8 +151,8 @@ export class Claw implements WithUpdate {
     this.actuator = this.scene.matter.add.constraint(
       leftArm.compound,
       rightArm.compound,
-      70,
-      0.005,
+      this.openWidth,
+      0.05,
       {
         pointA: { x: 20, y: 0 },
         pointB: { x: -20, y: 0 },
@@ -177,12 +182,14 @@ export const updateTrolleyMovement = (
 
   const leftPressed = ctx.cursors.left.isDown;
   const rightPressed = ctx.cursors.right.isDown;
+  const upPressed = ctx.cursors.up.isDown;
   const downPressed = ctx.cursors.down.isDown;
 
   if (!isBody(trolley)) return;
 
   if (rightPressed) applyAccel(trolley, 6, 0, delta);
   if (leftPressed) applyAccel(trolley, -6, 0, delta);
+  if (upPressed) applyAccel(trolley, 0, -5, delta);
   if (downPressed) applyAccel(trolley, 0, 5, delta);
 
   // Thrust
