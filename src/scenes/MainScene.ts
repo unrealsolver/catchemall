@@ -56,13 +56,10 @@ export class MainScene extends Phaser.Scene {
     this.graphics = this.add.graphics();
     this.drawUI();
 
-    this.add
-      .text(config.view.width / 2, 20, "CLAW MACHINE", {
-        fontSize: "24px",
-        color: "#ffffff",
-        fontFamily: "monospace",
-      })
-      .setOrigin(0.5);
+    const title = document.createElement("div");
+
+    title.innerHTML = "AI SLOP MASTER 3000 TUNK TUNK SAHUR MACHINE";
+    this.add.dom(config.view.width / 2, 20, title).setOrigin(0.5);
 
     this.add
       .text(config.well.left / 2, config.well.top + 30, "DROP\nZONE", {
