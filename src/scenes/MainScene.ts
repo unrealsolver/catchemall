@@ -140,6 +140,7 @@ export class MainScene extends Phaser.Scene {
     );
 
     this.createToys(config);
+    this.createTargetToy(config);
 
     return {
       ...this.createClaw(config),
@@ -223,6 +224,78 @@ export class MainScene extends Phaser.Scene {
       ropeLinks,
       claw,
     };
+  }
+
+  private createTargetToy({ well, view }: GameConfig): void {
+    const sidesA = 3 + Math.floor(Math.random() * 4);
+    const radiusA = 28 + Math.random() * 12;
+    const jitterA = radiusA * Phaser.Math.FloatBetween(0.35, 0.65);
+    const vecPolyA = createIrregularPolygon(sidesA, radiusA, jitterA);
+
+    const sidesB = 3 + Math.floor(Math.random() * 4);
+    const radiusB = 28 + Math.random() * 12;
+    const jitterB = radiusB * Phaser.Math.FloatBetween(0.35, 0.65);
+    const vecPolyB = createIrregularPolygon(sidesB, radiusB, jitterB);
+
+    // Attachment angle (direction polygon2 is placed relative to polygon1)
+    const attachAngle = Math.random() * Math.PI * 2;
+    const cosA = Math.cos(attachAngle);
+    const sinA = Math.sin(attachAngle);
+
+    // Calculate extent - how polyA will be extended to polyB
+    const extentPolyA = Math.max(
+      ...vecPolyA.map((v) => v.x * cosA + v.y * sinA)
+    );
+    const extentPolyB = Math.max(
+      ...vecPolyB.map((v) => -(v.x * cosA + v.y * sinA))
+    );
+
+    const overlap = 1.2;
+    const offsetDist = (extentPolyA + extentPolyB) / overlap; // divide to ensure contact
+
+    // Base position for the compound toy center
+    const baseX =
+      well.left + 40 + Math.random() * (view.width - well.left - 140);
+    const baseY = view.height - well.bottom - 60 - Math.random() * 200;
+
+    // Position polygons so they touch at the attachment angle
+    const posAX = baseX - (cosA * offsetDist) / 2;
+    const posAY = baseY - (sinA * offsetDist) / 2;
+    const posBX = baseX + (cosA * offsetDist) / 2;
+    const posBY = baseY + (sinA * offsetDist) / 2;
+
+    const polyParams = { density: 0.3, restitution: 0.002, friction: 0.15 };
+
+    const polyA = this.matter.bodies.fromVertices(
+      posAX,
+      posAY,
+      [vecPolyA],
+      polyParams,
+      true
+    );
+
+    const polyB = this.matter.bodies.fromVertices(
+      posBX,
+      posBY,
+      [vecPolyB],
+      polyParams,
+      true
+    );
+
+    this.matter.world.add(
+      this.matter.body.create({
+        parts: [polyA, polyB],
+        frictionAir: 0.02,
+        restitution: 0.1,
+        friction: 0.9,
+        frictionStatic: 10,
+        density: 0.01,
+        render: {
+          lineColor: 0xffcc00,
+          lineThickness: 2,
+        },
+      })
+    );
   }
 
   private createToys({ view, well }: GameConfig): void {
