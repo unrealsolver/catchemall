@@ -26,6 +26,15 @@ const PHYSICS = {
   MAX_STEPS: 12,
 };
 
+// Camera follow configuration
+const CAMERA = {
+  deadZoneX: 80, // Horizontal dead zone half-width
+  deadZoneY: 40, // Vertical dead zone half-height
+  smoothing: 0.08, // Base smoothing factor (lower = smoother)
+  maxSpeed: 12, // Maximum pixels per frame the camera can move
+  power: 2.5, // Non-linearity power (higher = more aggressive outside dead zone)
+};
+
 export class MainScene extends Phaser.Scene {
   private state!: GameState;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -321,6 +330,47 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
+  private updateCamera(delta: number): void {
+    const trolley = this.state.bodies.trolley;
+    const camera = this.cameras.main;
+    const { view } = this.state.config;
+
+    // Calculate where camera center currently looks at in world space
+    const cameraCenterX = camera.scrollX + view.width / 2;
+    const cameraCenterY = camera.scrollY + view.height / 2;
+
+    // Offset from trolley to camera center
+    const dx = trolley.position.x - cameraCenterX;
+    const dy = trolley.position.y - cameraCenterY;
+
+    // Apply dead zone - only move if outside dead zone
+    let moveX = 0;
+    let moveY = 0;
+
+    if (Math.abs(dx) > CAMERA.deadZoneX) {
+      // Distance outside dead zone
+      const excess = Math.abs(dx) - CAMERA.deadZoneX;
+      // Non-linear: accelerate movement as distance increases
+      const normalized = excess / 100; // normalize for reasonable power scaling
+      const factor = Math.pow(normalized, CAMERA.power) * 100;
+      moveX =
+        Math.sign(dx) * Math.min(factor * CAMERA.smoothing, CAMERA.maxSpeed);
+    }
+
+    if (Math.abs(dy) > CAMERA.deadZoneY) {
+      const excess = Math.abs(dy) - CAMERA.deadZoneY;
+      const normalized = excess / 100;
+      const factor = Math.pow(normalized, CAMERA.power) * 100;
+      moveY =
+        Math.sign(dy) * Math.min(factor * CAMERA.smoothing, CAMERA.maxSpeed);
+    }
+
+    // Scale by delta for frame-rate independence
+    const dtScale = delta / 16.67; // normalize to ~60fps
+    camera.scrollX += moveX * dtScale;
+    camera.scrollY += moveY * dtScale;
+  }
+
   update(time: number, delta: number): void {
     this.handlePhysics(time, delta);
     const { state } = this;
@@ -341,6 +391,7 @@ export class MainScene extends Phaser.Scene {
     //  config
     //);
 
+    this.updateCamera(delta);
     this.drawUI();
   }
 
