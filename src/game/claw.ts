@@ -1,6 +1,5 @@
 import Phaser, { Scene } from "phaser";
 import { GameConfig } from "./config";
-import { t as _t, StateMachine } from "typescript-fsm";
 import { MainScene, MainSceneContext } from "../scenes/MainScene";
 import { BodyType, ConstraintType } from "matter";
 
@@ -70,7 +69,7 @@ export class Arm {
     this.hinges = [left, right];
     const compound = scene.matter.body.create({
       parts: [left, right],
-      frictionAir: 0.02,
+      frictionAir: 0.01,
       restitution: 0.1,
       friction: 0.9,
       frictionStatic: 10,
@@ -187,10 +186,10 @@ export const updateTrolleyMovement = (
 
   if (!isBody(trolley)) return;
 
-  if (rightPressed) applyAccel(trolley, 6, 0, delta);
-  if (leftPressed) applyAccel(trolley, -6, 0, delta);
+  if (rightPressed) applyAccel(trolley, 7, 0, delta);
+  if (leftPressed) applyAccel(trolley, -7, 0, delta);
   if (upPressed) applyAccel(trolley, 0, -5, delta);
-  if (downPressed) applyAccel(trolley, 0, 5, delta);
+  if (downPressed) applyAccel(trolley, 0, 3, delta);
 
   // Thrust
   applyAccel(

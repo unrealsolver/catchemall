@@ -337,7 +337,7 @@ export class MainScene extends Phaser.Scene {
 
     // Calculate where camera center currently looks at in world space
     const cameraCenterX = camera.scrollX + view.width / 2;
-    const cameraCenterY = camera.scrollY + view.height / 2;
+    const cameraCenterY = camera.scrollY + view.height / 4;
 
     // Offset from trolley to camera center
     const dx = trolley.position.x - cameraCenterX;
