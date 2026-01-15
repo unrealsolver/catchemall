@@ -3,7 +3,6 @@ import { GameConfig } from "./config";
 import { MainScene, MainSceneContext } from "../scenes/MainScene";
 import { BodyType, ConstraintType } from "matter";
 
-//@ts-ignore-next-line
 const { Body, Vector } = Phaser.Physics.Matter.Matter;
 
 export type ClawState = {

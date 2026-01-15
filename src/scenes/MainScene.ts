@@ -10,8 +10,9 @@ import {
   Claw,
 } from "../game";
 import { Epicycle } from "../game/Epicycle";
-import { BodyType, Vector } from "matter";
+import { BodyType } from "matter";
 import { createIrregularPolygon } from "../utils";
+import { peFactory } from "../game/PEFactory";
 
 export type MainSceneContext = {
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -47,7 +48,10 @@ export class MainScene extends Phaser.Scene {
     super({ key: "MainScene" });
   }
 
-  preload(): void {}
+  preload() {
+    this.load.image("tanker", "assets/tanker.png");
+    this.load.json("peShapes", "assets/shapes.json");
+  }
 
   create(): void {
     const config = createGameConfig();
@@ -139,8 +143,17 @@ export class MainScene extends Phaser.Scene {
       view.height
     );
 
-    this.createToys(config);
+    //this.createToys(config);
     this.createTargetToy(config);
+    peFactory.createSprite({
+      scene: this,
+      shapeName: "tanker",
+      shapesJsonKey: "peShapes",
+      texture: "tanker",
+      x: 400,
+      y: 50,
+      scale: { x: 0.5, y: 0.5 },
+    });
 
     return {
       ...this.createClaw(config),
