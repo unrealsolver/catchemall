@@ -21,6 +21,9 @@ export type MainSceneContext = {
   state: GameState;
 };
 
+export type Dicktators = "luka" | "madura" | "plesh";
+export type CatchedDicktators = `catched_${Dicktators}`;
+
 // Override physics simulator tickrate
 const PHYSICS = {
   TARGET_DT: 1000 / 120, // 120Hz
@@ -51,6 +54,9 @@ export class MainScene extends Phaser.Scene {
 
   preload() {
     this.load.image("tanker", "assets/tanker.png");
+    this.load.image("luka", "assets/luka.png");
+    this.load.image("catched_luka", "assets/catched_luka.png");
+
     this.load.json("peShapes", "assets/shapes.json");
   }
 
@@ -146,6 +152,10 @@ export class MainScene extends Phaser.Scene {
 
     //this.createToys(config);
     //this.createTargetToy(config);
+
+    this.addToyDicktator("luka", { x: 460, y: -100 });
+    this.addCatchedToyDicktator("catched_luka", { x: 320, y: -100 });
+
     peFactory.createSprite({
       scene: this,
       shapeName: "tanker",
@@ -169,6 +179,40 @@ export class MainScene extends Phaser.Scene {
     return {
       ...this.createClaw(config),
     };
+  }
+
+  private addToyDicktator(
+    who: Dicktators,
+    where: { x: number; y: number },
+    scale = 0.1
+  ) {
+    peFactory.createSprite({
+      scene: this,
+      shapeName: who,
+      shapesJsonKey: "peShapes",
+      texture: who,
+      x: where.x,
+      y: where.y,
+      scale: { x: scale, y: scale },
+      origin: { x: 0.5, y: 0.5 },
+    });
+  }
+
+  private addCatchedToyDicktator(
+    who: CatchedDicktators,
+    where: { x: number; y: number },
+    scale = 0.1
+  ) {
+    peFactory.createSprite({
+      scene: this,
+      shapeName: who,
+      shapesJsonKey: "peShapes",
+      texture: who,
+      x: where.x,
+      y: where.y,
+      scale: { x: scale, y: scale },
+      origin: { x: 0.5, y: 0.5 },
+    });
   }
 
   private createClaw(config: GameConfig) {
