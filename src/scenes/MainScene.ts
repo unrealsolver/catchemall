@@ -25,6 +25,7 @@ export type MainSceneContext = {
 const PHYSICS = {
   TARGET_DT: 1000 / 120, // 120Hz
   MAX_STEPS: 12,
+  ENABLED: true,
 };
 
 // Camera follow configuration
@@ -144,14 +145,24 @@ export class MainScene extends Phaser.Scene {
     );
 
     //this.createToys(config);
-    this.createTargetToy(config);
+    //this.createTargetToy(config);
     peFactory.createSprite({
       scene: this,
       shapeName: "tanker",
       shapesJsonKey: "peShapes",
       texture: "tanker",
       x: 400,
-      y: 50,
+      y: 500,
+      scale: { x: 0.5, y: 0.5 },
+    });
+
+    peFactory.createSprite({
+      scene: this,
+      shapeName: "tanker",
+      shapesJsonKey: "peShapes",
+      texture: "tanker",
+      x: 550,
+      y: 400,
       scale: { x: 0.5, y: 0.5 },
     });
 
@@ -299,10 +310,10 @@ export class MainScene extends Phaser.Scene {
       this.matter.body.create({
         parts: [polyA, polyB],
         frictionAir: 0.02,
-        restitution: 0.1,
-        friction: 0.9,
-        frictionStatic: 10,
-        density: 0.01,
+        restitution: 0.2,
+        friction: 0.5,
+        frictionStatic: 0.5,
+        density: 0.001,
         render: {
           lineColor: 0xffcc00,
           lineThickness: 2,
@@ -400,6 +411,11 @@ export class MainScene extends Phaser.Scene {
   private handlePhysics(_time: number, delta: number) {
     // delta is in ms (from Phaser)
     this.unprocessedTime += delta;
+
+    // Handle disabled physics (debug mostly)
+    if (PHYSICS.ENABLED === false) {
+      return;
+    }
 
     // Clamp after tab-switch / hitch so you don't do 500 steps in one frame
     const maxBuffer = PHYSICS.TARGET_DT * PHYSICS.MAX_STEPS;
