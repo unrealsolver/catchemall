@@ -215,7 +215,7 @@ export class MainScene extends Phaser.Scene {
 
       ropeLinks.push(link);
 
-      this.matter.add.constraint(prevBody, link, 2, 0.85, {
+      this.matter.add.constraint(prevBody, link, 2, 1, {
         pointA: { x: 0, y: i === 0 ? 10 : linkLength / 2 },
         pointB: { x: 0, y: -linkLength / 2 },
         damping: 0.1,

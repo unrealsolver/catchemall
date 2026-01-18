@@ -73,41 +73,32 @@ export class Arm {
     const link = 40;
     const flipY = flip ? -1 : 1;
 
-    const proximalBeam = scene.matter.bodies.rectangle(0, 0, 10, link);
-    Body.translate(proximalBeam, { x: 0, y: link / 2 });
-    Body.setDensity(proximalBeam, 0.002);
-
-    const distalBeam = scene.matter.bodies.rectangle(0, 0, 10, link);
-    Body.translate(distalBeam, { x: flipY * (link / 2 - 5), y: link + 5 });
-    Body.rotate(distalBeam, -Math.PI / 2);
-    Body.setDensity(distalBeam, 0.0005);
-
     const rotator = scene.matter.bodies.circle(0, 0, r);
     Body.translate(rotator, { x: 0, y: 0 });
     Body.setDensity(rotator, 0.01);
 
     const left = scene.matter.bodies.circle(0, 0, r);
+    left.collisionFilter.mask = 0;
     Body.translate(left, { x: 0, y: link + 5 });
     Body.setDensity(left, 0.0005);
 
     const right = scene.matter.bodies.circle(0, 0, r);
+    right.collisionFilter.mask = 0;
     Body.translate(right, { x: flipY * (link - 10), y: link + 5 });
     Body.setDensity(right, 0.0005);
 
     this.hinges = [left, right];
     const compound = scene.matter.body.create({
-      parts: [rotator, left, right, proximalBeam, distalBeam],
+      parts: [rotator, left, right],
       frictionAir: 0.01,
       restitution: 0.1,
-      friction: 0.9,
-      frictionStatic: 0.8,
+      friction: 0.4,
+      frictionStatic: 0.4,
     });
     this.compound = compound;
-    //Body.rotate(compound, Math.PI / 4);
     const obj = scene.add.rectangle(0, 0, 10, 40, 0xff0000);
     const ent = scene.matter.add.gameObject(obj, compound);
     this.body = ent as Phaser.Physics.Matter.Sprite;
-    //this.body.rotation = Math.PI / 4;
   }
 }
 
@@ -116,31 +107,21 @@ export class Claw implements WithUpdate {
   base: BodyType;
   arms: [left: Arm, right: Arm];
   actuator: ConstraintType;
+  dampers: [ConstraintType, ConstraintType];
   openWidth = 70;
   closedWidth = 50;
+  actuatorStiffness = 0.02;
+  damperStiffness = 0.02;
   isClosed: boolean = false;
 
   private makeHinge(arm: Arm, isRight: boolean = false) {
     this.scene.matter.add.constraint(this.base, arm.compound, 0, 1, {
       pointA: { x: isRight ? 20 : -20, y: 0 },
       pointB: { x: isRight ? 2.5 : -2.5, y: -10 },
-      angularStiffness: 0.02,
+      angularStiffness: 0.5,
       stiffness: 1,
-      damping: 0.1,
+      damping: 0.2,
     });
-    //this.scene.matter.add.constraint(
-    //  this.base,
-    //  arm.compound,
-    //  50,
-    //  0.5,
-
-    //  {
-    //    pointA: { x: isRight ? 5 : -5, y: 5 },
-    //    pointB: { x: isRight ? 10 : -10, y: 0 },
-    //    angularStiffness: 0.01,
-    //    damping: 0.01,
-    //  }
-    //);
   }
 
   constructor(scene: Scene, x: number, y: number) {
@@ -151,20 +132,6 @@ export class Claw implements WithUpdate {
       isStatic: false,
       collisionFilter: { group },
     });
-
-    //const b2 = scene.matter.add.rectangle(x + 40, y, 50, 15, {
-    //  density: 0.01,
-    //  isStatic: false,
-    //  collisionFilter: { group },
-    //});
-
-    //this.scene.matter.add.constraint(this.base, b2, 0, 1, {
-    //  pointA: { x: 20, y: 0 },
-    //  pointB: { x: 5, y: 0 },
-    //  angularStiffness: 0.02,
-    //  stiffness: 1,
-    //  damping: 0.02,
-    //});
 
     const leftArm = new Arm(scene);
     leftArm.body.setCollisionGroup(group);
@@ -187,11 +154,39 @@ export class Claw implements WithUpdate {
     this.arms = [leftArm, rightArm];
   }
 
+  private setSlacked() {
+    this.actuator.stiffness = 0;
+    this.dampers[0].stiffness = 0;
+    this.dampers[1].stiffness = 0;
+  }
+
+  private setNormal() {
+    this.actuator.stiffness = this.actuatorStiffness;
+    this.dampers[0].stiffness = this.damperStiffness;
+    this.dampers[1].stiffness = this.damperStiffness;
+  }
+
+  /** radians */
+  private angleBetween(a: BodyType, b: BodyType) {
+    return a.angle - b.angle;
+  }
+
   update(_: any, ctx: MainSceneContext): void {
+    // Stupid twitch mitigations
     clampSpeed(this.arms[0].compound, 4);
     clampSpeed(this.arms[1].compound, 4);
     clampAngular(this.arms[0].compound, 0.05);
     clampAngular(this.arms[1].compound, 0.05);
+
+    // angle between base and arm
+    const ang1 = this.angleBetween(this.base, this.arms[0].compound);
+    const ang2 = this.angleBetween(this.base, this.arms[1].compound);
+
+    if (ang1 + Math.PI / 2 < 0 || Math.PI / 2 - ang2 < 0) {
+      this.setSlacked();
+    } else {
+      this.setNormal();
+    }
 
     const actionPressed = Phaser.Input.Keyboard.JustDown(ctx.spaceKey);
     if (actionPressed) {
@@ -204,25 +199,40 @@ export class Claw implements WithUpdate {
     this.actuator = this.scene.matter.add.constraint(
       leftArm.compound,
       rightArm.compound,
-      this.closedWidth,
-      0.02,
+      this.openWidth,
+      this.actuatorStiffness,
       {
         pointA: { x: 0, y: 10 },
         pointB: { x: 0, y: 10 },
+        damping: 0.05,
       }
     );
 
-    this.scene.matter.add.constraint(this.base, rightArm.compound, 45, 0.01, {
-      pointA: { x: -15, y: 0 },
-      pointB: { x: 0, y: 10 },
-      damping: 0.05,
-    });
+    const damper1 = this.scene.matter.add.constraint(
+      this.base,
+      rightArm.compound,
+      45,
+      this.damperStiffness,
+      {
+        pointA: { x: -15, y: 0 },
+        pointB: { x: 0, y: 10 },
+        damping: 0.05,
+      }
+    );
 
-    this.scene.matter.add.constraint(this.base, leftArm.compound, 45, 0.01, {
-      pointA: { x: 15, y: 0 },
-      pointB: { x: 0, y: 10 },
-      damping: 0.05,
-    });
+    const damper2 = this.scene.matter.add.constraint(
+      this.base,
+      leftArm.compound,
+      45,
+      this.damperStiffness,
+      {
+        pointA: { x: 15, y: 0 },
+        pointB: { x: 0, y: 10 },
+        damping: 0.05,
+      }
+    );
+
+    this.dampers = [damper1, damper2];
   }
 }
 
