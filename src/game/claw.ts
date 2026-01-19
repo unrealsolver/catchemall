@@ -168,7 +168,7 @@ export class Claw implements WithUpdate {
 
   /** radians */
   private angleBetween(a: BodyType, b: BodyType) {
-    return a.angle - b.angle;
+    return Phaser.Math.Angle.Wrap(a.angle - b.angle);
   }
 
   update(_: any, ctx: MainSceneContext): void {
