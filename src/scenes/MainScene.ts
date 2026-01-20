@@ -6,7 +6,6 @@ import {
   ClawBodies,
   createClawState,
   updateTrolleyMovement,
-  updateClawSequence,
   Claw,
 } from "../game";
 import { Epicycle } from "../game/Epicycle";
@@ -528,7 +527,6 @@ export class MainScene extends Phaser.Scene {
     this.state.bodies.claw.update(delta, this.ctx);
 
     const lastLink = bodies.ropeLinks[bodies.ropeLinks.length - 1];
-    updateClawSequence(claw, lastLink.position.y, config, false);
 
     //updateClawHinges(
     //  claw,

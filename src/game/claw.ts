@@ -171,7 +171,7 @@ export class Claw implements WithUpdate {
     return Phaser.Math.Angle.Wrap(a.angle - b.angle);
   }
 
-  update(_: any, ctx: MainSceneContext): void {
+  update(delta: number, ctx: MainSceneContext): void {
     // Stupid twitch mitigations
     clampSpeed(this.arms[0].compound, 4);
     clampSpeed(this.arms[1].compound, 4);
@@ -182,9 +182,20 @@ export class Claw implements WithUpdate {
     const ang1 = this.angleBetween(this.base, this.arms[0].compound);
     const ang2 = this.angleBetween(this.base, this.arms[1].compound);
 
-    if (ang1 + Math.PI / 2 < 0 || Math.PI / 2 - ang2 < 0) {
+    const isLeftBroken = ang1 + Math.PI / 2 < 0;
+    const isRightBroken = Math.PI / 2 - ang2 < 0;
+
+    if (isLeftBroken) {
+      this.arms[0].compound.torque = -0.3;
       this.setSlacked();
-    } else {
+    }
+
+    if (isRightBroken) {
+      this.arms[1].compound.torque = 0.3;
+      this.setSlacked();
+    }
+
+    if (!isLeftBroken && !isRightBroken) {
       this.setNormal();
     }
 
@@ -252,7 +263,7 @@ export const updateTrolleyMovement = (
   delta: number
 ): void => {
   const { state } = ctx;
-  const { bodies, claw, config, wind } = state;
+  const { bodies, wind } = state;
   const trolley = bodies.trolley;
 
   const leftPressed = ctx.cursors.left.isDown;
@@ -273,46 +284,4 @@ export const updateTrolleyMovement = (
 
   // Wind
   applyAccel(trolley, wind.x, wind.y, delta, { x: 0, y: -5 });
-};
-
-export const updateClawSequence = (
-  state: ClawState,
-  lastLinkY: number,
-  config: GameConfig,
-  actionPressed: boolean
-): void => {
-  // Start descent on action press when idle
-  if (actionPressed && !state.isDescending && !state.isAscending) {
-    state.isDescending = true;
-  }
-
-  // Descending: check if reached bottom
-  if (state.isDescending) {
-    if (lastLinkY >= config.well.bottom - 50) {
-      state.isDescending = false;
-      state.isAscending = true;
-      state.isOpen = false;
-    }
-  }
-
-  // Ascending: check if reached top
-  if (state.isAscending) {
-    if (lastLinkY <= config.trolley.y + 80) {
-      state.isAscending = false;
-      state.isOpen = true;
-    }
-  }
-};
-
-export const updateClawHinges = (
-  state: ClawState,
-  leftConstraint: MatterJS.ConstraintType,
-  rightConstraint: MatterJS.ConstraintType,
-  config: GameConfig
-): void => {
-  const targetSpread = state.isOpen ? config.claw.spread : 5;
-  state.currentSpread += (targetSpread - state.currentSpread) * 0.1;
-
-  leftConstraint.pointB = { x: state.currentSpread, y: 0 };
-  rightConstraint.pointB = { x: -state.currentSpread, y: 0 };
 };
