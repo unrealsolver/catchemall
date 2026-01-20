@@ -265,15 +265,11 @@ export const updateTrolleyMovement = (
   if (rightPressed) applyAccel(trolley, 7, 0, delta);
   if (leftPressed) applyAccel(trolley, -7, 0, delta);
   if (upPressed) applyAccel(trolley, 0, -5, delta);
-  if (downPressed) applyAccel(trolley, 0, 3, delta);
+  // 300 for max vertical depth
+  if (downPressed && trolley.position.y < 300) applyAccel(trolley, 0, 3, delta);
 
   // Thrust
-  applyAccel(
-    trolley,
-    0,
-    -1 - 100 * Math.pow(trolley.position.y / state.config.view.height / 2, 2),
-    delta
-  );
+  applyAccel(trolley, 0, -4, delta);
 
   // Wind
   applyAccel(trolley, wind.x, wind.y, delta, { x: 0, y: -5 });
