@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "bunx --bun vite",
+    "no-debug": "VITE_DEBUG_PHASER=NO bunx --bun vite",
     "build": "bunx --bun vite build",
     "preview": "bunx --bun vite preview",
     "prepare": "husky"

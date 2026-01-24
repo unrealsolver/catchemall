@@ -17,7 +17,7 @@ const config: Phaser.Types.Core.GameConfig = {
       velocityIterations: 10,
       constraintIterations: 6,
       gravity: { x: 0, y: 1 },
-      debug: true,
+      debug: import.meta.env.VITE_DEBUG_PHASER == "NO" ? false : true,
     },
   },
   scene: [MainScene],
