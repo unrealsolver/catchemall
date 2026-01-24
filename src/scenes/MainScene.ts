@@ -21,7 +21,10 @@ export type MainSceneContext = {
 };
 
 export type Dicktators = "luka" | "madura" | "plesh";
-export type CatchedDicktators = `catched_${Dicktators}`;
+export type CaughtDicktators = `caught_${Dicktators}`;
+export type DicktatorState =
+  | `caught_${Dicktators}`
+  | `not_caught_${Dicktators}`; // sprite state: number | string (thanks Phaser)
 
 // Override physics simulator tickrate
 const PHYSICS = {
@@ -54,7 +57,7 @@ export class MainScene extends Phaser.Scene {
   preload() {
     this.load.image("tanker", "assets/tanker.png");
     this.load.image("luka", "assets/luka.png");
-    this.load.image("catched_luka", "assets/catched_luka.png");
+    this.load.image("caught_luka", "assets/caught_luka.png");
 
     this.load.json("peShapes", "assets/shapes.json");
   }
@@ -62,12 +65,14 @@ export class MainScene extends Phaser.Scene {
   create(): void {
     const config = createGameConfig();
     const bodies = this.createPhysicsObjects(config);
+    const pieceOfShit = this.addToyDicktator("luka", { x: 400, y: -120 });
 
     this.state = {
       config,
       claw: createClawState(config.claw.spread),
       bodies,
       wind: new Epicycle({ baseAmp: 1.0, baseOmega: 0.9, seed: 13 }),
+      targetToy: pieceOfShit,
     };
 
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -152,9 +157,6 @@ export class MainScene extends Phaser.Scene {
     //this.createToys(config);
     //this.createTargetToy(config);
 
-    this.addToyDicktator("luka", { x: 460, y: -100 });
-    this.addCatchedToyDicktator("catched_luka", { x: 320, y: -100 });
-
     peFactory.createSprite({
       scene: this,
       shapeName: "tanker",
@@ -183,9 +185,9 @@ export class MainScene extends Phaser.Scene {
   private addToyDicktator(
     who: Dicktators,
     where: { x: number; y: number },
-    scale = 0.1
+    scale = 0.05
   ) {
-    peFactory.createSprite({
+    const dick = peFactory.createSprite({
       scene: this,
       shapeName: who,
       shapesJsonKey: "peShapes",
@@ -195,23 +197,8 @@ export class MainScene extends Phaser.Scene {
       scale: { x: scale, y: scale },
       origin: { x: 0.5, y: 0.5 },
     });
-  }
-
-  private addCatchedToyDicktator(
-    who: CatchedDicktators,
-    where: { x: number; y: number },
-    scale = 0.1
-  ) {
-    peFactory.createSprite({
-      scene: this,
-      shapeName: who,
-      shapesJsonKey: "peShapes",
-      texture: who,
-      x: where.x,
-      y: where.y,
-      scale: { x: scale, y: scale },
-      origin: { x: 0.5, y: 0.5 },
-    });
+    dick.state = `not_caught_${who}`;
+    return dick;
   }
 
   private createClaw(config: GameConfig) {
@@ -526,14 +513,25 @@ export class MainScene extends Phaser.Scene {
     updateTrolleyMovement(this.ctx, delta);
     this.state.bodies.claw.update(delta, this.ctx);
 
-    const lastLink = bodies.ropeLinks[bodies.ropeLinks.length - 1];
+    const target = this.state.targetToy; // toy of dicktator
 
-    //updateClawHinges(
-    //  claw,
-    //  bodies.leftConstraint,
-    //  bodies.rightConstraint,
-    //  config
-    //);
+    if (this.state.bodies.claw.isClosed) {
+      if (typeof target.state !== "string")
+        throw new Error("Where my money Lebowski?!");
+
+      const info = target.state.split("_");
+      const who = info.pop(); // caught_luka or not_caught_luka => name should always be the last
+
+      if (info.at(0) === "not") {
+        // update the sprite to change state if it is caught by claw
+        target.state = `caught_${who}`;
+        target.setTexture(target.state);
+      }
+    } else {
+      // TODO: swap not crying texture back if needed
+    }
+
+    const lastLink = bodies.ropeLinks[bodies.ropeLinks.length - 1];
 
     this.updateCamera(delta);
     this.drawUI();
