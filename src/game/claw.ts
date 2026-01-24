@@ -6,63 +6,6 @@ import Matter from "matter-js";
 
 const { Body, Vector } = Phaser.Physics.Matter.Matter;
 
-export type ClawState = {
-  isDescending: boolean;
-  isAscending: boolean;
-  isOpen: boolean;
-  currentSpread: number;
-};
-
-export type ClawBodies = {
-  claw: Claw;
-  trolley: BodyType;
-  ropeLinks: BodyType[];
-  leftHinge: BodyType;
-  rightHinge: BodyType;
-  leftConstraint: ConstraintType;
-  rightConstraint: ConstraintType;
-};
-
-export function clampSpeed(body: BodyType, maxSpeed: number) {
-  const vx = body.velocity.x;
-  const vy = body.velocity.y;
-  const s = Math.hypot(vx, vy);
-  if (s <= maxSpeed) return;
-
-  const k = maxSpeed / s;
-  Body.setVelocity(body, { x: vx * k, y: vy * k });
-}
-
-export function clampAngular(body: BodyType, maxSpeed: number) {
-  const av = body.angularSpeed;
-
-  if (Math.abs(av) <= maxSpeed) return;
-
-  const k = maxSpeed / av;
-  Body.setAngularVelocity(body, av * k);
-}
-
-export function applyAccel(
-  body: MatterJS.BodyType,
-  ax: number,
-  ay: number,
-  deltaMs: number,
-  offset: MatterJS.Vector = { x: 0, y: 0 }
-) {
-  // scale vs 60fps so it feels stable across frame rates
-  const dt = deltaMs / 16.6667;
-
-  // F = m * a (then scaled to Matter's world units)
-  const fx = body.mass * ax * 0.0005 * dt;
-  const fy = body.mass * ay * 0.0005 * dt;
-
-  Body.applyForce(body, Vector.add(body.position, offset), { x: fx, y: fy });
-}
-
-function isBody(b: any): b is Body {
-  return b && b.position && b.velocity && typeof b.mass === "number";
-}
-
 export class Arm {
   hinges: [proximal: MatterJS.BodyType, distal: MatterJS.BodyType];
   body: Phaser.Physics.Matter.Sprite;
@@ -100,6 +43,10 @@ export class Arm {
     const ent = scene.matter.add.gameObject(obj, compound);
     this.body = ent as Phaser.Physics.Matter.Sprite;
   }
+}
+
+interface WithUpdate {
+  update(delta: number, ctx: MainSceneContext): void;
 }
 
 export class Claw implements WithUpdate {
@@ -247,16 +194,69 @@ export class Claw implements WithUpdate {
   }
 }
 
+export type ClawBodies = {
+  claw: Claw;
+  trolley: BodyType;
+  ropeLinks: BodyType[];
+  leftHinge: BodyType;
+  rightHinge: BodyType;
+  leftConstraint: ConstraintType;
+  rightConstraint: ConstraintType;
+};
+
+export function clampSpeed(body: BodyType, maxSpeed: number) {
+  const vx = body.velocity.x;
+  const vy = body.velocity.y;
+  const s = Math.hypot(vx, vy);
+  if (s <= maxSpeed) return;
+
+  const k = maxSpeed / s;
+  Body.setVelocity(body, { x: vx * k, y: vy * k });
+}
+
+export function clampAngular(body: BodyType, maxSpeed: number) {
+  const av = body.angularSpeed;
+
+  if (Math.abs(av) <= maxSpeed) return;
+
+  const k = maxSpeed / av;
+  Body.setAngularVelocity(body, av * k);
+}
+
+export function applyAccel(
+  body: MatterJS.BodyType,
+  ax: number,
+  ay: number,
+  deltaMs: number,
+  offset: MatterJS.Vector = { x: 0, y: 0 }
+) {
+  // scale vs 60fps so it feels stable across frame rates
+  const dt = deltaMs / 16.6667;
+
+  // F = m * a (then scaled to Matter's world units)
+  const fx = body.mass * ax * 0.0005 * dt;
+  const fy = body.mass * ay * 0.0005 * dt;
+
+  Body.applyForce(body, Vector.add(body.position, offset), { x: fx, y: fy });
+}
+
+function isBody(b: any): b is Body {
+  return b && b.position && b.velocity && typeof b.mass === "number";
+}
+
+export type ClawState = {
+  isDescending: boolean;
+  isAscending: boolean;
+  isClosed: boolean;
+  currentSpread: number;
+};
+
 export const createClawState = (spread: number): ClawState => ({
   isDescending: false,
   isAscending: false,
-  isOpen: true,
+  isClosed: true,
   currentSpread: spread,
 });
-
-interface WithUpdate {
-  update(delta: number, ctx: MainSceneContext): void;
-}
 
 export const updateTrolleyMovement = (
   ctx: MainSceneContext,

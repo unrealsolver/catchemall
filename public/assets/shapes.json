@@ -183,9 +183,9 @@
       }
     ]
   },
-  "catched_luka": {
+  "caught_luka": {
     "type": "fromPhysicsEditor",
-    "label": "luka_chort_processed",
+    "label": "chort",
     "isStatic": false,
     "density": 0.1,
     "restitution": 0,
@@ -392,7 +392,7 @@
   },
   "luka": {
     "type": "fromPhysicsEditor",
-    "label": "luka_fraer_processed",
+    "label": "fraer",
     "isStatic": false,
     "density": 0.10000000149011612,
     "restitution": 0,
